@@ -211,6 +211,30 @@ table.data tr:last-child td { border-bottom: 0; }
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .rn-link { display: inline-block; margin-top: 8px; font-size: 12px; color: var(--accent-d); font-weight: 600; text-decoration: none; }
 .rn-link:hover { text-decoration: underline; }
+.rn-item { cursor: pointer; border-radius: 8px; padding: 16px 12px; margin: 0 -12px; }
+.rn-item:hover { background: var(--card2); }
+
+/* 본문 리더 */
+.rn-back { border: 1px solid var(--line); background: var(--card2); color: var(--dim);
+  border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; margin-bottom: 14px; }
+.rn-back:hover { color: var(--ink); }
+.rn-doc-title { font-family: Georgia, serif; font-size: 24px; font-weight: 800; margin: 0 0 10px; }
+.rn-doc-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--faint);
+  font-size: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.rn-doc-meta a { color: var(--accent-d); font-weight: 600; text-decoration: none; }
+.rn-doc-body { font-size: 14px; line-height: 1.8; color: var(--ink); }
+.rn-doc-body h3, .rn-doc-body h4, .rn-doc-body h5 { font-weight: 800; margin: 22px 0 8px; }
+.rn-doc-body h3 { font-size: 17px; }
+.rn-doc-body h4 { font-size: 15px; }
+.rn-doc-body p { margin: 10px 0; }
+.rn-doc-body ul { margin: 8px 0; padding-left: 20px; }
+.rn-doc-body li { margin: 4px 0; }
+.rn-doc-body blockquote { border-left: 3px solid var(--accent); background: var(--soft);
+  margin: 12px 0; padding: 10px 14px; border-radius: 0 8px 8px 0; color: var(--dim); }
+.rn-doc-body hr { border: 0; border-top: 1px solid var(--line); margin: 22px 0; }
+.rn-doc-body code { background: var(--card2); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+.rn-doc-body pre { background: var(--card2); padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+.rn-empty { color: var(--faint); }
 
 @media (max-width: 820px) {
   #app { grid-template-columns: 66px 1fr; }

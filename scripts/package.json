@@ -1,0 +1,10 @@
+{
+  "name": "anda-research-sync",
+  "private": true,
+  "type": "module",
+  "description": "Notion → Supabase 동기화 스크립트 (GitHub Actions 용)",
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
