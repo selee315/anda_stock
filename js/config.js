@@ -14,7 +14,7 @@ window.APP_CONFIG = {
 
   // 로그인 ID를 이메일로 매핑할 때 쓰는 내부 도메인.
   // 사용자는 "hong" 처럼 ID만 입력하고, 내부적으로 hong@ahfms.local 로 처리됩니다.
-  LOGIN_EMAIL_DOMAIN: "ahfms.local",
+  LOGIN_EMAIL_DOMAIN: "ahfms.co.kr",
 
   BRAND: {
     title: "AH Research",
