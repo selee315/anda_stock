@@ -1,0 +1,8 @@
+flask
+pandas
+openpyxl
+finance-datareader
+yfinance
+playwright
+beautifulsoup4
+lxml

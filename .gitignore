@@ -1,22 +1,12 @@
-# 의존성
-node_modules/
-
-# 환경/비밀 (절대 커밋 금지)
+# 민감 정보
 .env
-.env.*
-*.local
-js/config.local.js
-supabase/.env
+*.env.local
 
-# OS / 에디터
+# 캐시
+data/_*.json
+data/_*.cache
+__pycache__/
+*.pyc
+
+# 시스템
 .DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# 로그
-*.log
-npm-debug.log*
-
-# Claude Code 로컬 설정
-.claude/
