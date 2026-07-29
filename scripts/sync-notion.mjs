@@ -8,9 +8,10 @@
 import { Client } from "@notionhq/client";
 import { createClient } from "@supabase/supabase-js";
 
-const NOTION_TOKEN = process.env.NOTION_TOKEN;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// .trim() — 복사 시 딸려온 개행/공백 제거 (HTTP 헤더 오류 방지)
+const NOTION_TOKEN = (process.env.NOTION_TOKEN || "").trim();
+const SUPABASE_URL = (process.env.SUPABASE_URL || "").trim();
+const SERVICE_KEY  = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 
 if (!NOTION_TOKEN || !SUPABASE_URL || !SERVICE_KEY) {
   console.error("환경변수 누락: NOTION_TOKEN / SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
@@ -124,6 +125,11 @@ async function run() {
     }
   }
   console.log(`동기화 완료: 성공 ${ok} / 실패 ${fail}`);
+  // 페이지를 찾았는데 하나도 못 썼으면 실패로 종료 (초록불 오해 방지)
+  if (pages.length > 0 && ok === 0) {
+    console.error("⚠️ 모든 upsert 실패 — 워크플로우를 실패 처리합니다.");
+    process.exit(1);
+  }
 }
 
 run().catch((e) => { console.error(e); process.exit(1); });

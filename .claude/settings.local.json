@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git -c 'user.name=AH Research' -c user.email=selee@andaasset.com commit -q -m 'Phase 0: 로그인 + 터미널 뼈대 \\(정적 HTML + Supabase\\) *)",
+      "Bash(git rm *)",
+      "Bash(git -c user.name=\"AH Research\" -c user.email=\"selee@andaasset.com\" commit -q -m \"chore: .claude 로컬 설정 gitignore 처리\")",
+      "Bash(gh auth *)",
+      "mcp__dba47027-cf1a-4f23-b67d-5ee2556bcdfa__notion-get-teams",
+      "mcp__dba47027-cf1a-4f23-b67d-5ee2556bcdfa__notion-search",
+      "mcp__dba47027-cf1a-4f23-b67d-5ee2556bcdfa__notion-fetch",
+      "Bash(git config *)",
+      "Bash(ssh-keygen -t ed25519 -C \"selee@andaasset.com\" -f ~/.ssh/id_ed25519 -N \"\" -q)",
+      "Read(//Users/anda/.ssh/**)",
+      "Bash(ssh -o StrictHostKeyChecking=no -o BatchMode=yes -T git@github.com)",
+      "Bash(git -c user.name=이소은 -c user.email=selee@andaasset.com commit -q -m 'feat: Supabase 프로젝트 연결 \\(실제 인증 활성화\\) *)",
+      "Bash(ls -la ~/Downloads/ | grep -i research 2>/dev/null; echo \"---\"; ls -la ~/Downloads/*.zip* 2>/dev/null | head)",
+      "Bash(rm -rf ref)",
+      "Bash(mkdir -p ref)",
+      "Bash(unzip -o -q \"/Users/anda/Downloads/research-export.zip 1.zi\" -d ref)",
+      "Bash(xargs ls -la)",
+      "Bash(sort -k5 -rn)",
+      "Bash(awk '{printf \"%8d  %s\\\\n\", $5, $9}')",
+      "Bash(awk '/const MENU\\\\s*=/{f=1} f{print} f&&/\\\\];/{exit}' static/index.html)",
+      "Bash(git -c user.name=이소은 -c user.email=selee@andaasset.com commit -q -m 'refactor: 원본 소스 기반으로 뼈대 재정비 *)",
+      "Bash(curl -s -o /dev/null -w \"server:%{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(git -c user.name=이소은 -c user.email=selee@andaasset.com commit -q -m 'fix: 로그인 매핑 도메인을 ahfms.co.kr 로 변경 \\(Supabase MX 검증 통과\\) *)",
+      "Bash(git -c user.name=이소은 -c user.email=selee@andaasset.com commit -q -m 'chore: 본사\\(안다자산운용\\) 브랜딩으로 교체 + 로그인 도메인 andaasset.com *)",
+      "Bash(git -c user.name=이소은 -c user.email=selee@andaasset.com commit -q -m 'feat: localhost 개발 미리보기\\(로그인 없이 입장\\) 추가 *)",
+      "Bash(git -c user.name=이소은 -c user.email=selee@andaasset.com commit -q -m 'chore: Supabase 마이그레이션 구조 도입 + README 현행화 *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(GIT_SSH_COMMAND=\"ssh -o StrictHostKeyChecking=no\" git push -u origin main)",
+      "Bash(git -c user.name=이소은 -c user.email=selee@andaasset.com commit -q -m 'chore: Vercel 정적 배포 설정 \\(vercel.json + 보안 헤더\\) *)",
+      "Bash(GIT_SSH_COMMAND=\"ssh -o StrictHostKeyChecking=no\" git push -q origin main)",
+      "Bash(git -c user.name=이소은 -c user.email=selee@andaasset.com commit -q -m 'feat\\(research\\): Notion 기반 리서치 노트 페이지 + research_notes 테이블 *)"
+    ]
+  }
+}
