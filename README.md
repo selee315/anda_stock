@@ -1,60 +1,58 @@
-# AH Research Terminal
+# Anda Research Terminal
 
-안다H 리서치 터미널 — [research.ahfms.co.kr](https://research.ahfms.co.kr) 스타일의
-사내 리서치 대시보드. 정적 HTML/CSS/JS + Supabase(인증·DB) 구성.
+안다자산운용 리서치 터미널 — 블룸버그 스타일 사내 리서치 대시보드.
+**정적 HTML/CSS/JS 프런트 + Supabase(인증·DB·Edge Functions)** 구성.
+(설계 참고: 안다H `research.ahfms.co.kr` — 본 저장소는 본사용 신규 구축)
 
-## 현재 상태 (v1 — 뼈대)
+## 아키텍처
 
-- ✅ 로그인 화면 (ID / 비밀번호)
-- ✅ 카테고리 레일 8종 + 섹션 네비게이션 (MARKET / MACRO / NEWS / TELEGRAM / RESEARCH / QUANT / DISCLOSURE / COMPANY)
-- ✅ 라이트/다크 모드
-- ✅ Supabase 인증 연동 (미설정 시 "미리보기 모드"로 동작)
-- ⬜ 각 섹션 실제 데이터 연결 (다음 단계)
+| 레이어 | 담당 |
+|---|---|
+| 프런트 | 정적 HTML/JS SPA (프레임워크 없음). Vercel/Netlify 등 정적 배포 |
+| 인증 | Supabase Auth (ID → `id@andaasset.com` 매핑, 화면엔 ID만) |
+| DB | Supabase Postgres (RLS 보호). 스키마는 `supabase/migrations/` 로 버전관리 |
+| 외부데이터·배치 | Supabase Edge Functions + pg_cron (비밀키는 Supabase Vault) |
 
 ## 폴더 구조
 
 ```
-index.html          진입점
-css/app.css         전체 스타일 (테마 변수 포함)
-js/config.js        Supabase URL/anon key 설정  ← 여기를 채우면 실제 로그인 활성화
-js/nav.js           좌측 네비게이션 구조 정의
-js/auth.js          인증 모듈 (Supabase Auth + 미리보기 모드)
-js/main.js          앱 셸 렌더링 / 라우팅
-supabase/schema.sql Supabase 초기 스키마
+index.html              진입점 (스크립트 로드 순서)
+css/app.css             전체 스타일 (K-System 그린 스킨, 라이트/다크)
+js/config.js            Supabase URL/anon key + 브랜딩 설정
+js/menu.js              좌측 네비게이션(카테고리>탭) 정의 — 원본과 tab id 1:1
+js/supabase.js          Supabase 클라이언트 싱글턴
+js/auth.js              인증 (Supabase Auth + localhost 개발 미리보기)
+js/api.js               데이터 레이어 (table 조회 / Edge Function 호출)
+js/handlers.js          탭 id → 렌더 함수 레지스트리 (섹션 구현 위치)
+js/app.js               앱 셸 렌더 / 라우팅
+supabase/migrations/    DB 마이그레이션 (SQL, 버전관리)
 ```
 
 ## 로컬 실행
 
-정적 파일이라 서버 없이 `index.html` 을 브라우저로 열어도 되지만,
-Supabase 연동을 정상 테스트하려면 로컬 서버로 여는 것을 권장합니다.
-
 ```bash
-python3 -m http.server 5173
-# → http://localhost:5173
+python3 -m http.server 5173   # → http://localhost:5173
 ```
 
-## Supabase 연결 (실제 로그인 활성화)
+localhost 에서는 로그인 없이 **"🔧 개발자 미리보기"** 로 바로 입장 가능 (배포 도메인에선 비활성).
 
-1. [supabase.com](https://supabase.com) 에서 프로젝트 → **Settings → API** 로 이동
-2. `Project URL` 과 `anon public` 키를 복사
-3. `js/config.js` 의 `SUPABASE_URL`, `SUPABASE_ANON_KEY` 에 붙여넣기
-4. **SQL Editor** 에서 `supabase/schema.sql` 실행
-5. **Authentication → Users** 에서 사용자 추가
-   - 이메일은 `아이디@ahfms.local` 형식 (예: `hong@ahfms.local`)
-   - 그러면 로그인 화면에서는 `hong` 만 입력하면 됩니다
+## Supabase 세팅
 
-> anon key 는 공개돼도 안전합니다(RLS로 보호). `service_role` 키는 절대 프론트에 넣지 마세요.
+1. 프로젝트 → **Settings → API** 에서 `Project URL`·`anon public` 키를 `js/config.js` 에 입력
+   (anon key 는 공개 안전 / `service_role` 키는 **절대 프런트에 넣지 말 것**)
+2. **SQL Editor** 에서 `supabase/migrations/` 의 SQL 을 번호 순서대로 실행
+   (또는 Supabase CLI: `supabase link` → `supabase db push`)
+3. **Authentication → Providers → Email**: "Confirm email" **OFF** (사내 계정은 관리자 발급)
+4. 계정 발급: **Authentication → Users → Add user**
+   - Email `아이디@andaasset.com` (예: `selee@andaasset.com`) → 로그인 시 `selee` 만 입력
 
-## 배포
+## 배포 (예정)
 
-정적 사이트라 아래 어디에든 배포 가능합니다.
+정적 사이트 → GitHub 연결로 Vercel/Netlify/Cloudflare Pages 배포. 빌드 명령 없음.
 
-- **Vercel / Netlify**: GitHub 저장소 연결 → 빌드 명령 없음, 출력 디렉터리 `/`
-- **Cloudflare Pages / GitHub Pages**: 동일하게 정적 배포
+## 로드맵
 
-## 다음 단계 (로드맵)
-
-1. 섹션별 데이터 연결 (MARKET 시세부터)
-2. 텔레그램 채널 수집/검색 + 알림/시그널 + AI 요약
-3. Notion 연동 (RESEARCH 브리프)
-4. DART/EODHD/FRED 등 외부 데이터 소스 파이프라인
+1. ✅ 로그인 + 터미널 뼈대 (8 카테고리 · 전체 탭 · 다크모드)
+2. ⬜ 섹션 데이터 연결 — Notion(RESEARCH) → 시세(EODHD)·공시(DART)·매크로(FRED)
+3. ⬜ 텔레그램 채널 수집/검색 + 알림·시그널 + AI 요약
+4. ⬜ 계정·권한 관리(관리자 발급·임시비번), 배포
