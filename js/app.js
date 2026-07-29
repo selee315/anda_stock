@@ -40,9 +40,11 @@
           <button class="gold" type="submit" id="loginBtn">로그인</button>
           <div id="err"></div>
           <div class="foot">🔒 ${window.APP_CONFIG.isConfigured ? "Supabase 인증" : "미리보기 모드 (Supabase 미연결)"}</div>
+          ${window.Auth.isLocalhost ? `<div class="foot" style="margin-top:8px"><button type="button" id="devBtn" style="background:none;border:0;color:var(--dim);text-decoration:underline;font-size:11px;cursor:pointer">🔧 개발자 미리보기 (로그인 없이 입장)</button></div>` : ""}
         </form>
       </div>`;
     $("#themebtn").onclick = toggleTheme;
+    if ($("#devBtn")) $("#devBtn").onclick = () => { window.Auth.devSignIn(); renderApp(); };
     $("#loginForm").onsubmit = async (e) => {
       e.preventDefault();
       const btn = $("#loginBtn"), err = $("#err");

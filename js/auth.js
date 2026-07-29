@@ -6,6 +6,15 @@
 window.Auth = (() => {
   const cfg = window.APP_CONFIG;
 
+  // 개발 편의: localhost 에서만 로그인 없이 진입 허용 (배포 도메인에선 무효)
+  const isLocalhost = ["localhost", "127.0.0.1", ""].includes(location.hostname);
+
+  function devSignIn() {
+    if (!isLocalhost) throw new Error("개발 미리보기는 localhost 에서만 가능합니다.");
+    sessionStorage.setItem("dev_preview", "개발자");
+    return { user: { id: "dev", label: "개발자" }, preview: true };
+  }
+
   function toEmail(id) {
     id = (id || "").trim();
     return id.includes("@") ? id : `${id.toLowerCase()}@${cfg.LOGIN_EMAIL_DOMAIN}`;
@@ -27,9 +36,15 @@ window.Auth = (() => {
     const sb = window.SB.client();
     if (sb) await sb.auth.signOut();
     sessionStorage.removeItem("preview_user");
+    sessionStorage.removeItem("dev_preview");
   }
 
   async function currentSession() {
+    // localhost 개발 미리보기 세션 우선 (배포 도메인에선 isLocalhost=false 라 무시)
+    if (isLocalhost) {
+      const dev = sessionStorage.getItem("dev_preview");
+      if (dev) return { user: { id: "dev", label: dev }, preview: true };
+    }
     const sb = window.SB.client();
     if (!sb) {
       const u = sessionStorage.getItem("preview_user");
@@ -51,5 +66,5 @@ window.Auth = (() => {
     return msg;
   }
 
-  return { signIn, signOut, currentSession, userLabel };
+  return { signIn, signOut, currentSession, userLabel, devSignIn, isLocalhost };
 })();
