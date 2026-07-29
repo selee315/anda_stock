@@ -13,14 +13,14 @@ window.APP_CONFIG = {
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZXR5eXN4cHVuaHVteGZnYnF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyOTkxOTQsImV4cCI6MjEwMDg3NTE5NH0.IObvxS4T6H5PHt3Piy2i4baBe2JWvI7D9tE5jBHGOwY",
 
   // 로그인 ID를 이메일로 매핑할 때 쓰는 내부 도메인.
-  // 사용자는 "hong" 처럼 ID만 입력하고, 내부적으로 hong@ahfms.local 로 처리됩니다.
-  LOGIN_EMAIL_DOMAIN: "ahfms.co.kr",
+  // 사용자는 "selee" 처럼 ID만 입력하고, 내부적으로 selee@andaasset.com 로 처리됩니다.
+  LOGIN_EMAIL_DOMAIN: "andaasset.com",
 
   BRAND: {
-    title: "AH Research",
-    subtitle: "안다H · research.ahfms.co.kr",
-    caption: "ANDA H · RESEARCH TERMINAL",
-    host: "research.ahfms.co.kr",
+    title: "Anda Research",
+    subtitle: "안다자산운용 · Research Terminal",
+    caption: "ANDA ASSET · RESEARCH TERMINAL",
+    host: "안다자산운용",
   },
 };
 
