@@ -9,8 +9,8 @@
 //     service_role key 는 절대 여기에 넣지 마세요.
 // ─────────────────────────────────────────────────────────────
 window.APP_CONFIG = {
-  SUPABASE_URL: "",        // 예: https://xxxxxxxx.supabase.co
-  SUPABASE_ANON_KEY: "",   // 예: eyJhbGciOi...
+  SUPABASE_URL: "https://bbetyysxpunhumxfgbqw.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZXR5eXN4cHVuaHVteGZnYnF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyOTkxOTQsImV4cCI6MjEwMDg3NTE5NH0.IObvxS4T6H5PHt3Piy2i4baBe2JWvI7D9tE5jBHGOwY",
 
   // 로그인 ID를 이메일로 매핑할 때 쓰는 내부 도메인.
   // 사용자는 "hong" 처럼 ID만 입력하고, 내부적으로 hong@ahfms.local 로 처리됩니다.
