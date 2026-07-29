@@ -83,19 +83,53 @@ function blockToMd(b) {
   }
 }
 
+// 검색 인덱싱 지연 대비 — 알려진 DB id 안전망 (회의록 등)
+const KNOWN_DB_IDS = [
+  "38838dfd-53bc-80d3-85f2-ca9d9290e36a", // 회의록
+];
+
+// 접근 가능한 모든 페이지 수집: DB 직접쿼리(즉시) + 독립페이지 search
+async function collectPages() {
+  const byId = new Map();
+
+  // 1) 접근 가능한 데이터베이스 열거 (search) + 안전망 id
+  const dbIds = new Set(KNOWN_DB_IDS);
+  let c;
+  do {
+    const res = await notion.search({ filter: { property: "object", value: "database" }, page_size: 100, start_cursor: c });
+    for (const d of res.results) dbIds.add(d.id);
+    c = res.has_more ? res.next_cursor : undefined;
+  } while (c);
+  console.log(`데이터베이스: ${dbIds.size}개`);
+
+  // 2) 각 DB 의 모든 행(page) — databases.query 는 색인 지연과 무관하게 즉시 반환
+  for (const dbId of dbIds) {
+    try {
+      let cc;
+      do {
+        const res = await notion.databases.query({ database_id: dbId, start_cursor: cc, page_size: 100 });
+        for (const p of res.results) byId.set(p.id, p);
+        cc = res.has_more ? res.next_cursor : undefined;
+      } while (cc);
+    } catch (e) {
+      console.error(`DB 조회 실패 [${dbId}]: ${e.message}`);
+    }
+  }
+
+  // 3) 독립 페이지 (DB에 속하지 않은 것) — search
+  c = undefined;
+  do {
+    const res = await notion.search({ filter: { property: "object", value: "page" }, page_size: 100, start_cursor: c });
+    for (const p of res.results) byId.set(p.id, p);
+    c = res.has_more ? res.next_cursor : undefined;
+  } while (c);
+
+  return [...byId.values()];
+}
+
 async function run() {
   console.log("Notion 동기화 시작…");
-  const pages = [];
-  let cursor;
-  do {
-    const res = await notion.search({
-      filter: { property: "object", value: "page" },
-      page_size: 100,
-      start_cursor: cursor,
-    });
-    pages.push(...res.results);
-    cursor = res.has_more ? res.next_cursor : undefined;
-  } while (cursor);
+  const pages = await collectPages();
   console.log(`대상 페이지: ${pages.length}건`);
 
   let ok = 0, fail = 0;
