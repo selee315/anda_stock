@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git init *)",
-      "Bash(git add *)",
-      "Bash(git -c 'user.name=AH Research' -c user.email=selee@andaasset.com commit -q -m 'Phase 0: 로그인 + 터미널 뼈대 \\(정적 HTML + Supabase\\) *)"
-    ]
-  }
-}

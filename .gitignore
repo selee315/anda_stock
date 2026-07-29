@@ -17,3 +17,6 @@ Thumbs.db
 # 로그
 *.log
 npm-debug.log*
+
+# Claude Code 로컬 설정
+.claude/
