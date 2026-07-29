@@ -8,10 +8,12 @@
 import { Client } from "@notionhq/client";
 import { createClient } from "@supabase/supabase-js";
 
-// .trim() — 복사 시 딸려온 개행/공백 제거 (HTTP 헤더 오류 방지)
-const NOTION_TOKEN = (process.env.NOTION_TOKEN || "").trim();
-const SUPABASE_URL = (process.env.SUPABASE_URL || "").trim();
-const SERVICE_KEY  = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+// 모든 공백/개행 제거 — 복사 시 값 중간에 낀 줄바꿈까지 제거 (HTTP 헤더 오류 방지)
+// (토큰·키·URL 은 원래 공백을 포함하지 않으므로 안전)
+const clean = (v) => (v || "").replace(/\s+/g, "");
+const NOTION_TOKEN = clean(process.env.NOTION_TOKEN);
+const SUPABASE_URL = clean(process.env.SUPABASE_URL);
+const SERVICE_KEY  = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 if (!NOTION_TOKEN || !SUPABASE_URL || !SERVICE_KEY) {
   console.error("환경변수 누락: NOTION_TOKEN / SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
