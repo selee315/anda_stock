@@ -98,7 +98,8 @@ async function pageMarkdown(pageId, depth = 0) {
   return out.filter(Boolean).join("\n\n");
 }
 
-// 인라인 DB → 안에 있는 항목들의 제목·링크 목록만 (본문은 각 항목이 개별로 들어옴)
+// 인라인 DB 발견 시: (1) 목록 마크다운 반환 (2) 각 행을 pendingRows 에 넣어 개별 싱크되게
+const pendingRows = [];   // 페이지 처리 중 발견된 하위 DB 행들 (큐에 추가됨)
 async function inlineDbMarkdown(dbBlock) {
   const label = dbBlock.child_database?.title || "하위 DB";
   try {
@@ -108,7 +109,10 @@ async function inlineDbMarkdown(dbBlock) {
       let cc;
       do {
         const res = await notionFetch(`/v1/data_sources/${dsId}/query`, "POST", cc ? { start_cursor: cc } : {});
-        for (const row of res.results) items.push(`- [${pageTitle(row)}](${row.url})`);
+        for (const row of res.results) {
+          items.push(`- [${pageTitle(row)}](${row.url})`);
+          pendingRows.push(row);   // 개별 노트 → 별도 항목으로 본문까지 싱크
+        }
         cc = res.has_more ? res.next_cursor : undefined;
       } while (cc);
     }
@@ -218,14 +222,23 @@ async function run() {
     }
   }
 
-  let ok = 0, fail = 0, skip = 0;
-  for (const page of pages) {
+  // 큐 방식: 처리 중 발견한 하위 DB 행(개별 노트)도 큐에 넣어 본문까지 싱크
+  const queue = [...pages];
+  const processed = new Set();
+  let ok = 0, fail = 0, skip = 0, discovered = 0;
+  while (queue.length) {
+    const page = queue.shift();
+    if (!page || processed.has(page.id)) continue;
+    processed.add(page.id);
     try {
       const edited = page.last_edited_time ? new Date(page.last_edited_time).getTime() : null;
       // FULL_SYNC 아니면, 안 바뀐 페이지는 본문 재수집 생략 (증분)
       if (!FULL_SYNC && edited && seen.get(page.id) === edited) { skip++; continue; }
       const title = pageTitle(page);
+      pendingRows.length = 0;                        // 이 페이지에서 발견될 하위 행 수집 준비
       const content = await pageMarkdown(page.id);
+      const found = pendingRows.splice(0);           // 이 페이지 안에서 발견된 하위 노트들
+      for (const r of found) if (!processed.has(r.id)) { queue.push(r); discovered++; }
       const category = pageProp(page, "카테고리") || pageProp(page, "Category") || null;
       const date = pageProp(page, "날짜") || dateFromTitle(title);
       const summary = (content || "").replace(/[#>*`\-]/g, "").replace(/\s+/g, " ").trim().slice(0, 220);
@@ -244,14 +257,14 @@ async function run() {
       const { error } = await sb.from("research_notes").upsert(row, { onConflict: "notion_id" });
       if (error) throw error;
       ok++;
+      if (ok % 50 === 0) console.log(`  …진행 ${ok}건 (큐 ${queue.length})`);
     } catch (e) {
       fail++;
       console.error(`실패 [${page.id}]:`, e.message);
     }
   }
-  console.log(`동기화 완료: 성공 ${ok} / 생략 ${skip} / 실패 ${fail}`);
-  // 페이지를 찾았고 아무것도 안 바뀌지도 않았는데 전부 실패면 실패 종료
-  if (pages.length > 0 && ok === 0 && skip === 0) {
+  console.log(`동기화 완료: 성공 ${ok} / 생략 ${skip} / 실패 ${fail} / 하위발견 ${discovered}`);
+  if ((ok + skip) === 0 && processed.size > 0) {
     console.error("⚠️ 모든 upsert 실패 — 워크플로우를 실패 처리합니다.");
     process.exit(1);
   }
