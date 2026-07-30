@@ -67,11 +67,23 @@ function pageProp(page, name) {
 function iconEmoji(page) {
   return page.icon?.type === "emoji" ? page.icon.emoji : null;
 }
-// YYMMDD 로 시작하는 제목에서 날짜 유추
-function dateFromTitle(title) {
-  const m = /^(\d{2})(\d{2})(\d{2})/.exec(title || "");
+// 유효한 YYYY-MM-DD 문자열만 통과 (아니면 null)
+function validDate(s) {
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
   if (!m) return null;
-  return `20${m[1]}-${m[2]}-${m[3]}`;
+  const mo = +m[2], d = +m[3];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+// 제목 앞머리에서 날짜 유추: 8자리(YYYYMMDD) 또는 6자리(YYMMDD)
+function dateFromTitle(title) {
+  const t = (title || "").trim();
+  let m = /^(\d{4})[-.]?(\d{2})[-.]?(\d{2})/.exec(t);          // 20211125 / 2021-11-25
+  if (m) return validDate(`${m[1]}-${m[2]}-${m[3]}`);
+  m = /^(\d{2})(\d{2})(\d{2})(?!\d)/.exec(t);                   // 260727
+  if (m) return validDate(`20${m[1]}-${m[2]}-${m[3]}`);
+  return null;
 }
 
 // 블록 → 간이 마크다운 (중첩 블록·인라인 DB 재귀 수집)
@@ -240,7 +252,7 @@ async function run() {
       const found = pendingRows.splice(0);           // 이 페이지 안에서 발견된 하위 노트들
       for (const r of found) if (!processed.has(r.id)) { queue.push(r); discovered++; }
       const category = pageProp(page, "카테고리") || pageProp(page, "Category") || null;
-      const date = pageProp(page, "날짜") || dateFromTitle(title);
+      const date = validDate(pageProp(page, "날짜")) || dateFromTitle(title);
       const summary = (content || "").replace(/[#>*`\-]/g, "").replace(/\s+/g, " ").trim().slice(0, 220);
       const row = {
         notion_id: page.id,
