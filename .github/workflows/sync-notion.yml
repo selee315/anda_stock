@@ -2,8 +2,13 @@ name: Notion → Supabase 동기화
 
 on:
   workflow_dispatch:            # 수동 실행 (Actions 탭에서 Run)
+    inputs:
+      full:
+        description: "전체 재수집 (본문 재구성). 평소엔 체크 해제 = 증분"
+        type: boolean
+        default: false
   schedule:
-    - cron: "0 * * * *"         # 매시 정각 (UTC) 자동 동기화
+    - cron: "0 */6 * * *"       # 6시간마다 자동 동기화 (증분이라 가벼움)
 
 jobs:
   sync:
@@ -22,4 +27,5 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FULL_SYNC: ${{ github.event.inputs.full }}
         run: node sync-notion.mjs

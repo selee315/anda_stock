@@ -14,6 +14,7 @@ const clean = (v) => (v || "").replace(/\s+/g, "");
 const NOTION_TOKEN = clean(process.env.NOTION_TOKEN);
 const SUPABASE_URL = clean(process.env.SUPABASE_URL);
 const SERVICE_KEY  = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+const FULL_SYNC    = clean(process.env.FULL_SYNC) === "true";  // 전체 재수집 여부
 
 if (!NOTION_TOKEN || !SUPABASE_URL || !SERVICE_KEY) {
   console.error("환경변수 누락: NOTION_TOKEN / SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
@@ -73,15 +74,48 @@ function dateFromTitle(title) {
   return `20${m[1]}-${m[2]}-${m[3]}`;
 }
 
-// 블록 → 간이 마크다운
-async function pageMarkdown(pageId) {
+// 블록 → 간이 마크다운 (중첩 블록·인라인 DB 재귀 수집)
+async function pageMarkdown(pageId, depth = 0) {
+  if (depth > 6) return "";  // 안전장치
   let out = [], cursor;
   do {
     const res = await notion.blocks.children.list({ block_id: pageId, start_cursor: cursor, page_size: 100 });
-    for (const b of res.results) out.push(blockToMd(b));
+    for (const b of res.results) {
+      if (b.type === "child_database") {
+        // 인라인 DB(예: 회사 페이지 안의 "노트") → 행들의 본문까지 끌어와 붙임
+        out.push(await inlineDbMarkdown(b, depth));
+        continue;
+      }
+      out.push(blockToMd(b));
+      // 토글·컬럼·리스트 등 하위 블록이 있으면 재귀 (child_page 제외)
+      if (b.has_children && b.type !== "child_page") {
+        const sub = await pageMarkdown(b.id, depth + 1);
+        if (sub) out.push(sub);
+      }
+    }
     cursor = res.has_more ? res.next_cursor : undefined;
   } while (cursor);
   return out.filter(Boolean).join("\n\n");
+}
+
+// 인라인 DB → 안에 있는 항목들의 제목·링크 목록만 (본문은 각 항목이 개별로 들어옴)
+async function inlineDbMarkdown(dbBlock) {
+  const label = dbBlock.child_database?.title || "하위 DB";
+  try {
+    const dsIds = await dataSourceIdsOf(dbBlock.id);
+    let items = [];
+    for (const dsId of dsIds) {
+      let cc;
+      do {
+        const res = await notionFetch(`/v1/data_sources/${dsId}/query`, "POST", cc ? { start_cursor: cc } : {});
+        for (const row of res.results) items.push(`- [${pageTitle(row)}](${row.url})`);
+        cc = res.has_more ? res.next_cursor : undefined;
+      } while (cc);
+    }
+    return items.length ? `### 📁 ${label}\n${items.join("\n")}` : `### 📁 ${label}`;
+  } catch {
+    return `### 📁 ${label}`;
+  }
 }
 function blockToMd(b) {
   const t = b.type;
@@ -171,9 +205,25 @@ async function run() {
   const pages = await collectPages();
   console.log(`대상 페이지: ${pages.length}건`);
 
-  let ok = 0, fail = 0;
+  // 증분: 기존 last_edited 로드 → 안 바뀐 페이지는 본문 재수집 생략
+  const seen = new Map();
+  {
+    let from = 0;
+    for (;;) {
+      const { data } = await sb.from("research_notes").select("notion_id,last_edited").range(from, from + 999);
+      if (!data || !data.length) break;
+      for (const r of data) if (r.last_edited) seen.set(r.notion_id, new Date(r.last_edited).getTime());
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+  }
+
+  let ok = 0, fail = 0, skip = 0;
   for (const page of pages) {
     try {
+      const edited = page.last_edited_time ? new Date(page.last_edited_time).getTime() : null;
+      // FULL_SYNC 아니면, 안 바뀐 페이지는 본문 재수집 생략 (증분)
+      if (!FULL_SYNC && edited && seen.get(page.id) === edited) { skip++; continue; }
       const title = pageTitle(page);
       const content = await pageMarkdown(page.id);
       const category = pageProp(page, "카테고리") || pageProp(page, "Category") || null;
@@ -199,9 +249,9 @@ async function run() {
       console.error(`실패 [${page.id}]:`, e.message);
     }
   }
-  console.log(`동기화 완료: 성공 ${ok} / 실패 ${fail}`);
-  // 페이지를 찾았는데 하나도 못 썼으면 실패로 종료 (초록불 오해 방지)
-  if (pages.length > 0 && ok === 0) {
+  console.log(`동기화 완료: 성공 ${ok} / 생략 ${skip} / 실패 ${fail}`);
+  // 페이지를 찾았고 아무것도 안 바뀌지도 않았는데 전부 실패면 실패 종료
+  if (pages.length > 0 && ok === 0 && skip === 0) {
     console.error("⚠️ 모든 upsert 실패 — 워크플로우를 실패 처리합니다.");
     process.exit(1);
   }
