@@ -23,6 +23,27 @@ if (!NOTION_TOKEN || !SUPABASE_URL || !SERVICE_KEY) {
 const notion = new Client({ auth: NOTION_TOKEN });
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
+// 신형 데이터소스 API 지원 (구형 databases.query 로는 data-source DB 를 못 읽음)
+const NOTION_VERSION = "2025-09-03";
+async function notionFetch(path, method = "GET", body) {
+  const res = await fetch("https://api.notion.com" + path, {
+    method,
+    headers: {
+      Authorization: `Bearer ${NOTION_TOKEN}`,
+      "Notion-Version": NOTION_VERSION,
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const j = await res.json();
+  if (!res.ok) throw new Error(j.message || `HTTP ${res.status}`);
+  return j;
+}
+async function dataSourceIdsOf(dbId) {
+  const j = await notionFetch(`/v1/databases/${dbId}`);
+  return (j.data_sources || []).map((d) => d.id);
+}
+
 const rich = (arr) => (arr || []).map((t) => t.plain_text).join("");
 
 // 페이지 제목 추출 (title 타입 프로퍼티 탐색)
@@ -102,17 +123,30 @@ async function collectPages() {
   } while (c);
   console.log(`데이터베이스: ${dbIds.size}개`);
 
-  // 2) 각 DB 의 모든 행(page) — databases.query 는 색인 지연과 무관하게 즉시 반환
+  // 2) 각 DB 의 모든 행(page) — 신형 데이터소스 쿼리 우선, 실패 시 구형 폴백
   for (const dbId of dbIds) {
     try {
-      let cc;
-      do {
-        const res = await notion.databases.query({ database_id: dbId, start_cursor: cc, page_size: 100 });
-        for (const p of res.results) byId.set(p.id, p);
-        cc = res.has_more ? res.next_cursor : undefined;
-      } while (cc);
+      const dsIds = await dataSourceIdsOf(dbId);
+      for (const dsId of dsIds) {
+        let cc;
+        do {
+          const res = await notionFetch(`/v1/data_sources/${dsId}/query`, "POST", cc ? { start_cursor: cc } : {});
+          for (const p of res.results) byId.set(p.id, p);
+          cc = res.has_more ? res.next_cursor : undefined;
+        } while (cc);
+      }
     } catch (e) {
-      console.error(`DB 조회 실패 [${dbId}]: ${e.message}`);
+      // 폴백: 구형 databases.query
+      try {
+        let cc;
+        do {
+          const res = await notion.databases.query({ database_id: dbId, start_cursor: cc, page_size: 100 });
+          for (const p of res.results) byId.set(p.id, p);
+          cc = res.has_more ? res.next_cursor : undefined;
+        } while (cc);
+      } catch (e2) {
+        console.error(`DB 조회 실패 [${dbId}]: ${e2.message}`);
+      }
     }
   }
 
