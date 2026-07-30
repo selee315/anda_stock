@@ -104,9 +104,11 @@ function blockToMd(b) {
   }
 }
 
-// 검색 인덱싱 지연 대비 — 알려진 DB id 안전망 (회의록 등)
+// 검색 인덱싱 지연 대비 — 주요 DB id 를 직접 지정 (search 로 못 찾아도 강제 조회)
 const KNOWN_DB_IDS = [
   "38838dfd-53bc-80d3-85f2-ca9d9290e36a", // 회의록
+  "38a38dfd-53bc-80ca-87c4-c051d718466f", // 기업탐방노트
+  "38838dfd-53bc-8047-a92e-e5cfd3000e78", // 증권사/외부 세미나
 ];
 
 // 접근 가능한 모든 페이지 수집: DB 직접쿼리(즉시) + 독립페이지 search
@@ -125,6 +127,7 @@ async function collectPages() {
 
   // 2) 각 DB 의 모든 행(page) — 신형 데이터소스 쿼리 우선, 실패 시 구형 폴백
   for (const dbId of dbIds) {
+    const before = byId.size;
     try {
       const dsIds = await dataSourceIdsOf(dbId);
       for (const dsId of dsIds) {
@@ -135,6 +138,7 @@ async function collectPages() {
           cc = res.has_more ? res.next_cursor : undefined;
         } while (cc);
       }
+      console.log(`  DB [${dbId}] → ${byId.size - before}행`);
     } catch (e) {
       // 폴백: 구형 databases.query
       try {
@@ -144,8 +148,9 @@ async function collectPages() {
           for (const p of res.results) byId.set(p.id, p);
           cc = res.has_more ? res.next_cursor : undefined;
         } while (cc);
+        console.log(`  DB [${dbId}] → ${byId.size - before}행 (구형)`);
       } catch (e2) {
-        console.error(`DB 조회 실패 [${dbId}]: ${e2.message}`);
+        console.error(`  DB [${dbId}] 접근불가: ${e2.message}`);
       }
     }
   }
