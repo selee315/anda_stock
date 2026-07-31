@@ -1,22 +1,19 @@
 // ─────────────────────────────────────────────────────────────
-//  사내 리서치 자료 — 리서치 브라우저
-//  로그인 게이트 + 출처 필터 + 검색 + 목록(무한스크롤) + 본문 리더
+//  안다 사내 포털 — 홈 + 섹션(사내 리서치 자료)
+//  로그인 게이트 → 상단 네비 → 홈(섹션 카드) / 사내 리서치 자료(브라우저)
 // ─────────────────────────────────────────────────────────────
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 
-  // ── 테마 ──
   const THEME_KEY = "ahresTheme";
   const applyTheme = (t) => { document.documentElement.setAttribute("data-theme", t); localStorage.setItem(THEME_KEY, t); };
   const toggleTheme = () => applyTheme((document.documentElement.getAttribute("data-theme") || "light") === "light" ? "dark" : "light");
   applyTheme(localStorage.getItem(THEME_KEY) || "light");
 
-  // ── 유틸 ──
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtDate = (d) => { if (!d) return ""; const t = new Date(d); if (isNaN(t)) return esc(d); const p = (n) => String(n).padStart(2, "0"); return `${t.getFullYear()}.${p(t.getMonth() + 1)}.${p(t.getDate())}`; };
 
-  // 간이 마크다운 → HTML
   function mdToHtml(md) {
     if (!md) return "";
     const lines = String(md).split("\n"); let html = "", inList = false, inCode = false, code = [];
@@ -40,8 +37,14 @@
     return html;
   }
 
-  // ── 상태 ──
-  const state = { source: null, q: "", page: 0, hasMore: true, loading: false, rows: [] };
+  // 섹션 정의 (홈 카드) — 확장 가능
+  const SECTIONS = [
+    { id: "research", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot·자료실 전체 검색·열람", ready: true, big: true },
+    { id: "market", icon: "📈", name: "시장 데이터", desc: "지수·환율·원자재·금리 (준비중)", ready: false },
+    { id: "ai", icon: "🤖", name: "AI 리서치", desc: "리서치 종합·질의응답 (준비중)", ready: false },
+  ];
+
+  const state = { view: "home", source: null, q: "", page: 0, hasMore: true, loading: false };
 
   // ── 로그인 ──
   function renderLogin() {
@@ -49,7 +52,7 @@
     document.body.innerHTML = `
       <button id="themebtn" class="mode-toggle">🌓</button>
       <div id="auth">
-        <div class="lbrand"><div class="t">${b.caption}</div><h1>사내 리서치 자료</h1><div class="s">${b.subtitle}</div></div>
+        <div class="lbrand"><div class="t">${b.caption}</div><h1>안다 리서치 포털</h1><div class="s">${b.subtitle}</div></div>
         <form class="loginbox" id="loginForm">
           <input id="uid" placeholder="사용자 ID" autocomplete="username" />
           <input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password" />
@@ -69,38 +72,81 @@
     };
   }
 
-  // ── 앱 셸 ──
-  async function renderApp(session) {
+  // ── 셸 ──
+  let SESSION = null;
+  function renderShell() {
     document.body.innerHTML = `
-      <div id="rb">
-        <header class="rb-top">
-          <div class="rb-brand">📚 <b>사내 리서치 자료</b></div>
-          <div class="rb-search"><input id="q" placeholder="제목·내용 검색…" value="${esc(state.q)}" /></div>
-          <div class="rb-actions">
-            <span class="rb-user">${esc(window.Auth.userLabel(session))}</span>
+      <div id="app">
+        <header class="nav">
+          <button class="nav-brand" id="navHome">🏛️ <b>안다 리서치 포털</b></button>
+          <nav class="nav-links">
+            <button class="nav-link" data-v="home">홈</button>
+            <button class="nav-link" data-v="research">사내 리서치 자료</button>
+          </nav>
+          <div class="nav-actions">
+            <span class="rb-user">${esc(window.Auth.userLabel(SESSION))}</span>
             <button id="themebtn" class="rb-ic" title="테마">🌓</button>
             <button id="logout" class="rb-ic" title="로그아웃">⎋</button>
           </div>
         </header>
-        <div class="rb-tabs" id="tabs"></div>
-        <main class="rb-list" id="list"></main>
+        <div id="view"></div>
       </div>
       <div id="reader" class="reader hidden"></div>
-      ${session.preview ? `<div class="preview-banner">🔎 미리보기 모드</div>` : ""}`;
-
+      ${SESSION.preview ? `<div class="preview-banner">🔎 미리보기 모드</div>` : ""}`;
+    $("#navHome").onclick = () => go("home");
     $("#themebtn").onclick = toggleTheme;
     $("#logout").onclick = async () => { await window.Auth.signOut(); renderLogin(); };
-    const qEl = $("#q");
-    let t; qEl.oninput = () => { clearTimeout(t); t = setTimeout(() => { state.q = qEl.value; reload(); }, 300); };
+    document.querySelectorAll(".nav-link").forEach((b) => b.onclick = () => go(b.dataset.v));
+    renderView();
+  }
 
+  function go(v) { state.view = v; renderView(); }
+
+  function renderView() {
+    document.querySelectorAll(".nav-link").forEach((b) => b.classList.toggle("active", b.dataset.v === state.view));
+    const v = $("#view"); v.className = "";
+    if (state.view === "research") return renderResearch(v);
+    return renderHome(v);
+  }
+
+  // ── 홈 ──
+  function renderHome(v) {
+    v.innerHTML = `
+      <div class="home">
+        <div class="home-hero">
+          <div class="home-cap">ANDA ASSET · 사내 포털</div>
+          <h1>안다 리서치 포털</h1>
+          <p>사내 리서치 자료를 한 곳에서 검색하고 열람하세요.</p>
+        </div>
+        <div class="home-grid">
+          ${SECTIONS.map((s) => `
+            <button class="sec-card${s.big ? " big" : ""}${s.ready ? "" : " off"}" data-id="${s.id}" ${s.ready ? "" : "disabled"}>
+              <div class="sec-ic">${s.icon}</div>
+              <div class="sec-name">${esc(s.name)}${s.ready ? "" : ' <span class="sec-soon">준비중</span>'}</div>
+              <div class="sec-desc">${esc(s.desc)}</div>
+            </button>`).join("")}
+        </div>
+      </div>`;
+    v.querySelectorAll(".sec-card").forEach((c) => { if (!c.disabled) c.onclick = () => go(c.dataset.id); });
+  }
+
+  // ── 사내 리서치 자료 (브라우저) ──
+  function renderResearch(v) {
+    v.innerHTML = `
+      <div id="rb">
+        <div class="rb-head">
+          <div class="rb-title">📚 사내 리서치 자료</div>
+          <div class="rb-search"><input id="q" placeholder="제목·내용 검색…" value="${esc(state.q)}" /></div>
+        </div>
+        <div class="rb-tabs" id="tabs"></div>
+        <main class="rb-list" id="list"></main>
+      </div>`;
+    const qEl = $("#q"); let t;
+    qEl.oninput = () => { clearTimeout(t); t = setTimeout(() => { state.q = qEl.value; reload(); }, 300); };
     renderTabs({ total: 0, bySource: {} });
     window.API.counts().then(renderTabs).catch(() => {});
     reload();
-
-    $("#list").onscroll = () => {
-      const m = $("#list");
-      if (!state.loading && state.hasMore && m.scrollTop + m.clientHeight > m.scrollHeight - 300) loadMore();
-    };
+    $("#list").onscroll = () => { const m = $("#list"); if (!state.loading && state.hasMore && m.scrollTop + m.clientHeight > m.scrollHeight - 300) loadMore(); };
   }
 
   function renderTabs(c) {
@@ -112,24 +158,21 @@
     tabs.querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { state.source = b.dataset.s || null; renderTabs(c); reload(); });
   }
 
-  function reload() { state.page = 0; state.rows = []; state.hasMore = true; $("#list").innerHTML = ""; loadMore(); }
+  function reload() { state.page = 0; state.hasMore = true; const l = $("#list"); if (l) l.innerHTML = ""; loadMore(); }
 
   async function loadMore() {
     if (state.loading || !state.hasMore) return;
     state.loading = true;
-    const list = $("#list");
+    const list = $("#list"); if (!list) { state.loading = false; return; }
     const spin = el("div", "rb-spin", "불러오는 중…"); list.appendChild(spin);
     try {
       const { rows, hasMore } = await window.API.list({ source: state.source, q: state.q, page: state.page });
       spin.remove();
-      if (state.page === 0 && rows.length === 0) {
-        list.innerHTML = `<div class="rb-empty">🗂️<div>표시할 자료가 없습니다.</div></div>`;
-      }
+      if (state.page === 0 && rows.length === 0) list.innerHTML = `<div class="rb-empty">🗂️<div>표시할 자료가 없습니다.</div></div>`;
       for (const r of rows) list.appendChild(rowEl(r));
-      state.page++; state.hasMore = hasMore; state.rows.push(...rows);
-    } catch (e) {
-      spin.textContent = "불러오기 실패: " + e.message;
-    } finally { state.loading = false; }
+      state.page++; state.hasMore = hasMore;
+    } catch (e) { spin.textContent = "불러오기 실패: " + e.message; }
+    finally { state.loading = false; }
   }
 
   function rowEl(r) {
@@ -149,8 +192,7 @@
 
   // ── 리더 ──
   async function openReader(id) {
-    const rd = $("#reader");
-    rd.classList.remove("hidden");
+    const rd = $("#reader"); rd.classList.remove("hidden");
     rd.innerHTML = `<div class="reader-inner"><div class="rb-spin">불러오는 중…</div></div>`;
     document.body.style.overflow = "hidden";
     try {
@@ -158,7 +200,7 @@
       rd.innerHTML = `
         <div class="reader-inner">
           <div class="reader-bar">
-            <button id="rdClose" class="rb-ic" title="닫기">← 목록</button>
+            <button id="rdClose" class="rb-ic">← 목록</button>
             ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="reader-link">Notion 원문 ↗</a>` : ""}
           </div>
           <h1 class="reader-title">${r.icon ? esc(r.icon) + " " : ""}${esc(r.title)}</h1>
@@ -179,8 +221,8 @@
 
   // ── 부팅 ──
   async function boot() {
-    const session = await window.Auth.currentSession();
-    session ? renderApp(session) : renderLogin();
+    SESSION = await window.Auth.currentSession();
+    SESSION ? renderShell() : renderLogin();
   }
   window.addEventListener("DOMContentLoaded", boot);
 })();
