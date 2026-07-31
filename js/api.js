@@ -47,5 +47,24 @@ window.API = (() => {
     return data;
   }
 
-  return { counts, list, get, PAGE };
+  // AI 리서치 질의 생성
+  async function aiAsk(question) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const { data: s } = await sb.auth.getSession();
+    const uid = s?.session?.user?.id;
+    if (!uid) throw new Error("로그인이 필요합니다 (미리보기 모드에선 AI 사용 불가)");
+    const { data, error } = await sb.from("ai_requests").insert({ question, user_id: uid }).select().single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+  // AI 질의 상태 조회 (폴링)
+  async function aiGet(id) {
+    const sb = window.SB.client();
+    const { data, error } = await sb.from("ai_requests").select("*").eq("id", id).single();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  return { counts, list, get, aiAsk, aiGet, PAGE };
 })();

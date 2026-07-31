@@ -41,7 +41,7 @@
   const SECTIONS = [
     { id: "research", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot·자료실 전체 검색·열람", ready: true, big: true },
     { id: "market", icon: "📈", name: "시장 데이터", desc: "지수·환율·원자재·금리 (준비중)", ready: false },
-    { id: "ai", icon: "🤖", name: "AI 리서치", desc: "리서치 종합·질의응답 (준비중)", ready: false },
+    { id: "ai", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
   ];
 
   const state = { view: "home", source: null, q: "", page: 0, hasMore: true, loading: false };
@@ -106,7 +106,63 @@
     document.querySelectorAll(".nav-link").forEach((b) => b.classList.toggle("active", b.dataset.v === state.view));
     const v = $("#view"); v.className = "";
     if (state.view === "research") return renderResearch(v);
+    if (state.view === "ai") return renderAI(v);
     return renderHome(v);
+  }
+
+  // ── AI 리서치 ──
+  const aiLog = [];   // 이 세션 대화 {q, a, sources, status}
+  function renderAI(v) {
+    v.innerHTML = `
+      <div id="ai">
+        <div class="ai-head"><div class="rb-title">🤖 AI 리서치</div>
+          <div class="ai-sub">사내 리서치 자료를 근거로 답합니다 · Claude (Max)</div></div>
+        <div class="ai-log" id="aiLog"></div>
+        <form class="ai-form" id="aiForm">
+          <input id="aiQ" placeholder="예: 방산 섹터 최근 리서치 종합해줘 / 플래티어 어떤 회사야?" autocomplete="off" />
+          <button class="gold ai-send" id="aiSend">질문</button>
+        </form>
+      </div>`;
+    drawAiLog();
+    $("#aiForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const q = $("#aiQ").value.trim(); if (!q) return;
+      $("#aiQ").value = "";
+      const item = { q, a: "", sources: [], status: "pending" };
+      aiLog.push(item); drawAiLog();
+      try {
+        const req = await window.API.aiAsk(q);
+        await pollAi(req.id, item);
+      } catch (ex) { item.status = "error"; item.a = ex.message; drawAiLog(); }
+    };
+  }
+
+  async function pollAi(id, item) {
+    for (let i = 0; i < 90; i++) {              // 최대 ~3분
+      await new Promise((r) => setTimeout(r, 2000));
+      let row; try { row = await window.API.aiGet(id); } catch { continue; }
+      item.status = row.status; item.a = row.answer || ""; item.sources = row.sources || [];
+      drawAiLog();
+      if (row.status === "done" || row.status === "error") return;
+    }
+    item.status = "error"; item.a = "시간 초과 (브릿지가 실행 중인지 확인하세요)"; drawAiLog();
+  }
+
+  function drawAiLog() {
+    const box = $("#aiLog"); if (!box) return;
+    if (!aiLog.length) {
+      box.innerHTML = `<div class="ai-empty">🤖<div>사내 리서치 자료 2,477건을 근거로 답합니다.<br>종목·섹터·이슈를 물어보세요.</div></div>`;
+      return;
+    }
+    box.innerHTML = aiLog.map((it) => `
+      <div class="ai-q">🙋 ${esc(it.q)}</div>
+      <div class="ai-a">
+        ${it.status === "pending" || it.status === "processing"
+          ? `<div class="ai-think">💭 생각 중… (${it.status === "processing" ? "리서치 검토 중" : "대기 중"})</div>`
+          : (it.status === "error" ? `<div class="ai-err">⚠️ ${esc(it.a)}</div>` : mdToHtml(it.a))}
+        ${it.sources && it.sources.length ? `<div class="ai-src">참고: ${it.sources.slice(0,6).map((s)=>`<a href="${esc(s.url||'#')}" target="_blank" rel="noopener">${esc((s.title||'').slice(0,20))}</a>`).join(" · ")}</div>` : ""}
+      </div>`).join("");
+    box.scrollTop = box.scrollHeight;
   }
 
   // ── 홈 ──
