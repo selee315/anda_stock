@@ -221,7 +221,10 @@ async function run() {
       pendingRows.length = 0;                        // 이 페이지에서 발견될 하위 행 수집 준비
       const content = await pageMarkdown(page.id);
       const found = pendingRows.splice(0);           // 이 페이지 안에서 발견된 하위 노트들
-      for (const r of found) if (!processed.has(r.id)) { r._source = page._source; queue.push(r); discovered++; }
+      for (const r of found) if (!processed.has(r.id)) {
+        r._source = page._source; r._parent_id = page.id; r._parent_title = title;  // 부모(회사) 태그
+        queue.push(r); discovered++;
+      }
       const category = pageProp(page, "카테고리") || pageProp(page, "Category") || null;
       const date = validDate(pageProp(page, "날짜")) || dateFromTitle(title);
       const summary = (content || "").replace(/[#>*`\-]/g, "").replace(/\s+/g, " ").trim().slice(0, 220);
@@ -229,6 +232,9 @@ async function run() {
         notion_id: page.id,
         source: "notion",
         source_db: page._source || null,
+        parent_id: page._parent_id || null,
+        parent_title: page._parent_title || null,
+        sector: pageProp(page, "Sector") || pageProp(page, "섹터") || null,
         title,
         category,
         summary: summary || null,

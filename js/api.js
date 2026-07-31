@@ -47,6 +47,29 @@ window.API = (() => {
     return data;
   }
 
+  // 기업탐방노트: 회사 목록 (parent 없는 회사 페이지) — 섹터별 그룹용
+  async function companies() {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const { data, error } = await sb.from("research_notes")
+      .select("id,notion_id,title,sector,summary")
+      .eq("source_db", "기업탐방노트").is("parent_id", null)
+      .order("title").limit(3000);
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+  // 특정 회사의 하위 노트들
+  async function companyNotes(parentNotionId) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const { data, error } = await sb.from("research_notes")
+      .select("id,title,summary,meeting_date,source_db")
+      .eq("parent_id", parentNotionId)
+      .order("meeting_date", { ascending: false, nullsFirst: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
   // AI 리서치 질의 생성
   async function aiAsk(question) {
     const sb = window.SB.client();
@@ -66,5 +89,5 @@ window.API = (() => {
     return data;
   }
 
-  return { counts, list, get, aiAsk, aiGet, PAGE };
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, PAGE };
 })();

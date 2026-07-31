@@ -44,7 +44,7 @@
     { id: "ai", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
   ];
 
-  const state = { view: "home", source: null, q: "", page: 0, hasMore: true, loading: false };
+  const state = { view: "home", source: null, q: "", page: 0, hasMore: true, loading: false, company: null };
 
   // ── 로그인 ──
   function renderLogin() {
@@ -211,10 +211,57 @@
     let html = tab(null, "전체", c.total);
     for (const s of window.SOURCES) html += tab(s, `${window.SOURCE_ICON[s] || ""} ${s}`, c.bySource[s]);
     tabs.innerHTML = html;
-    tabs.querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { state.source = b.dataset.s || null; renderTabs(c); reload(); });
+    tabs.querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { state.source = b.dataset.s || null; state.company = null; renderTabs(c); reload(); });
   }
 
-  function reload() { state.page = 0; state.hasMore = true; const l = $("#list"); if (l) l.innerHTML = ""; loadMore(); }
+  function reload() {
+    const l = $("#list"); if (l) l.innerHTML = "";
+    state.page = 0; state.hasMore = true;
+    // 기업탐방노트 + 검색어 없음 → 섹터>회사>노트 계층 뷰
+    if (state.source === "기업탐방노트" && !state.q.trim()) {
+      state.hasMore = false;
+      return state.company ? renderCompanyNotes() : renderCompanies();
+    }
+    loadMore();
+  }
+
+  // 회사 목록 (섹터별 그룹)
+  async function renderCompanies() {
+    const list = $("#list"); if (!list) return;
+    list.innerHTML = `<div class="rb-spin">회사 목록 불러오는 중…</div>`;
+    try {
+      const comps = await window.API.companies();
+      const bySector = {};
+      for (const c of comps) { const s = c.sector || "기타"; (bySector[s] ||= []).push(c); }
+      const sectors = Object.keys(bySector).sort((a, b) => (a === "기타") - (b === "기타") || a.localeCompare(b));
+      list.innerHTML = `<div class="co-hint">🏢 회사를 클릭하면 관련 탐방노트가 나옵니다 · 총 ${comps.length}개 회사</div>` +
+        sectors.map((s) => `
+          <div class="co-sector">
+            <div class="co-sector-h">${esc(s)} <span class="rb-count">${bySector[s].length}</span></div>
+            <div class="co-grid">${bySector[s].map((c) => `<button class="co-card" data-id="${esc(c.notion_id)}" data-t="${esc(c.title)}">${esc(c.title)}</button>`).join("")}</div>
+          </div>`).join("");
+      list.querySelectorAll(".co-card").forEach((b) => b.onclick = () => { state.company = { id: b.dataset.id, title: b.dataset.t }; renderCompanyNotes(); });
+    } catch (e) { list.innerHTML = `<div class="rb-spin">불러오기 실패: ${esc(e.message)}</div>`; }
+  }
+
+  // 특정 회사의 노트들
+  async function renderCompanyNotes() {
+    const list = $("#list"); if (!list) return;
+    list.innerHTML = `<div class="rb-spin">불러오는 중…</div>`;
+    try {
+      const notes = await window.API.companyNotes(state.company.id);
+      list.innerHTML = `<button class="co-back" id="coBack">← 회사 목록</button>
+        <div class="co-title">🏢 ${esc(state.company.title)} <span class="rb-count">${notes.length}건</span></div>` +
+        (notes.length ? notes.map((n) => `
+          <div class="rb-item co-note" data-id="${n.id}">
+            <div class="rb-item-main"><div class="rb-item-title">${esc(n.title)}</div>${n.summary ? `<div class="rb-item-sum">${esc(n.summary)}</div>` : ""}</div>
+            <div class="rb-item-meta">${n.meeting_date ? `<span class="rb-date">${fmtDate(n.meeting_date)}</span>` : ""}</div>
+          </div>`).join("")
+          : `<div class="rb-empty">🗂️<div>이 회사의 노트가 없습니다.</div></div>`);
+      $("#coBack").onclick = () => { state.company = null; renderCompanies(); };
+      list.querySelectorAll(".co-note").forEach((el) => el.onclick = () => openReader(+el.dataset.id));
+    } catch (e) { list.innerHTML = `<div class="rb-spin">실패: ${esc(e.message)}</div>`; }
+  }
 
   async function loadMore() {
     if (state.loading || !state.hasMore) return;
