@@ -24,14 +24,38 @@ function keywords(q) {
     .filter((w) => w.length >= 2 && !STOP.has(w)))].slice(0, 6);
 }
 
+const clean = (t) => t.replace(/^[\s\-*\d.)"']+/, "").replace(/["'%,()]/g, " ").trim();
+
+// Claude 로 질문을 검색어(종목·섹터·용어)로 확장 — 어휘 불일치(방산↔한국항공우주, 2분기↔2Q26) 해소
+async function expandTerms(q) {
+  const base = keywords(q);
+  try {
+    const { stdout } = await pexec("claude", ["-p",
+      `아래 질문에 답하려고 사내 리서치 DB(한국 주식 리서치)를 검색합니다. 관련 있을 종목명·회사명·섹터·핵심용어를 쉼표로만 나열하세요. 설명·번호 없이 단어만, 최대 14개. 분기 표현은 '2Q','2분기' 둘 다 포함.\n질문: ${q}`],
+      { maxBuffer: 1024 * 1024, timeout: 60000 });
+    const terms = stdout.split(/[,\n]/).map(clean).filter((s) => s.length >= 2 && s.length <= 24);
+    return [...new Set([...base, ...terms])].slice(0, 16);
+  } catch { return base; }
+}
+
 async function findContext(q) {
-  const kw = keywords(q);
-  if (!kw.length) return [];
-  const or = kw.map((k) => `title.ilike.%${k}%,content.ilike.%${k}%`).join(",");
-  const { data } = await sb.from("research_notes")
-    .select("title,source_db,meeting_date,url,content")
-    .or(or).order("last_edited", { ascending: false }).limit(12);
-  return data || [];
+  const terms = (await expandTerms(q)).map(clean).filter(Boolean);
+  if (!terms.length) return [];
+  // 각 검색어로 후보 수집 → 매칭 검색어 수(hits)로 랭킹 → 상위 18건
+  const pool = new Map();
+  for (const k of terms) {
+    const { data } = await sb.from("research_notes")
+      .select("id,title,source_db,meeting_date,url,content,last_edited")
+      .or(`title.ilike.%${k}%,content.ilike.%${k}%`).limit(30);
+    for (const r of data || []) {
+      const e = pool.get(r.id) || { row: r, hits: 0 };
+      e.hits++; pool.set(r.id, e);
+    }
+  }
+  const ranked = [...pool.values()].sort((a, b) =>
+    b.hits - a.hits || new Date(b.row.last_edited || 0) - new Date(a.row.last_edited || 0));
+  console.log(`  검색어 ${terms.length}개 → 후보 ${pool.size} → 상위 18`);
+  return ranked.slice(0, 18).map((e) => e.row);
 }
 
 function buildPrompt(q, ctx) {
