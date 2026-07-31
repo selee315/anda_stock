@@ -138,7 +138,7 @@
   }
 
   async function pollAi(id, item) {
-    for (let i = 0; i < 90; i++) {              // 최대 ~3분
+    for (let i = 0; i < 195; i++) {             // 최대 ~6.5분 (에이전트가 검색·정독·웹서치)
       await new Promise((r) => setTimeout(r, 2000));
       let row; try { row = await window.API.aiGet(id); } catch { continue; }
       item.status = row.status; item.a = row.answer || ""; item.sources = row.sources || [];
@@ -158,7 +158,7 @@
       <div class="ai-q">🙋 ${esc(it.q)}</div>
       <div class="ai-a">
         ${it.status === "pending" || it.status === "processing"
-          ? `<div class="ai-think">💭 생각 중… (${it.status === "processing" ? "리서치 검토 중" : "대기 중"})</div>`
+          ? `<div class="ai-think">💭 ${it.status === "processing" ? "사내 리서치 검색·정독 중… (최대 몇 분)" : "대기 중…"}</div>`
           : (it.status === "error" ? `<div class="ai-err">⚠️ ${esc(it.a)}</div>` : mdToHtml(it.a))}
         ${it.sources && it.sources.length ? `<div class="ai-src">참고: ${it.sources.slice(0,6).map((s)=>`<a href="${esc(s.url||'#')}" target="_blank" rel="noopener">${esc((s.title||'').slice(0,20))}</a>`).join(" · ")}</div>` : ""}
       </div>`).join("");
