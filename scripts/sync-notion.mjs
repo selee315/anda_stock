@@ -154,29 +154,20 @@ function blockToMd(b) {
   }
 }
 
-// 검색 인덱싱 지연 대비 — 주요 DB id 를 직접 지정 (search 로 못 찾아도 강제 조회)
-const KNOWN_DB_IDS = [
-  "38838dfd-53bc-80d3-85f2-ca9d9290e36a", // 회의록
-  "38a38dfd-53bc-80ca-87c4-c051d718466f", // 기업탐방노트
-  "38838dfd-53bc-8047-a92e-e5cfd3000e78", // 증권사/외부 세미나
+// 팀 DB 6종만 싱크 (개인 스페이스 유입 차단). 각 항목에 출처(source) 태그.
+const TEAM_DBS = [
+  { id: "38838dfd-53bc-80d3-85f2-ca9d9290e36a", name: "회의록" },
+  { id: "38a38dfd-53bc-80ca-87c4-c051d718466f", name: "기업탐방노트" },
+  { id: "38838dfd-53bc-8047-a92e-e5cfd3000e78", name: "증권사/외부 세미나" },
+  { id: "d0708e9c-9f78-4f46-a10b-4fb948403ead", name: "모닝 브리핑" },
+  { id: "38a38dfd-53bc-807b-a215-e4d21eeb9a64", name: "Spot Comment" },
+  { id: "26038dfd-53bc-835b-a5cf-010197970f0e", name: "자료실" },
 ];
 
-// 접근 가능한 모든 페이지 수집: DB 직접쿼리(즉시) + 독립페이지 search
+// 팀 DB 들의 행만 수집 (넓은 search 안 함 = 개인자료 제외). 행에 _source 태그.
 async function collectPages() {
   const byId = new Map();
-
-  // 1) 접근 가능한 데이터베이스 열거 (search) + 안전망 id
-  const dbIds = new Set(KNOWN_DB_IDS);
-  let c;
-  do {
-    const res = await notion.search({ filter: { property: "object", value: "database" }, page_size: 100, start_cursor: c });
-    for (const d of res.results) dbIds.add(d.id);
-    c = res.has_more ? res.next_cursor : undefined;
-  } while (c);
-  console.log(`데이터베이스: ${dbIds.size}개`);
-
-  // 2) 각 DB 의 모든 행(page) — 신형 데이터소스 쿼리 우선, 실패 시 구형 폴백
-  for (const dbId of dbIds) {
+  for (const { id: dbId, name } of TEAM_DBS) {
     const before = byId.size;
     try {
       const dsIds = await dataSourceIdsOf(dbId);
@@ -184,35 +175,15 @@ async function collectPages() {
         let cc;
         do {
           const res = await notionFetch(`/v1/data_sources/${dsId}/query`, "POST", cc ? { start_cursor: cc } : {});
-          for (const p of res.results) byId.set(p.id, p);
+          for (const p of res.results) { p._source = name; byId.set(p.id, p); }
           cc = res.has_more ? res.next_cursor : undefined;
         } while (cc);
       }
-      console.log(`  DB [${dbId}] → ${byId.size - before}행`);
+      console.log(`  DB [${name}] → ${byId.size - before}행`);
     } catch (e) {
-      // 폴백: 구형 databases.query
-      try {
-        let cc;
-        do {
-          const res = await notion.databases.query({ database_id: dbId, start_cursor: cc, page_size: 100 });
-          for (const p of res.results) byId.set(p.id, p);
-          cc = res.has_more ? res.next_cursor : undefined;
-        } while (cc);
-        console.log(`  DB [${dbId}] → ${byId.size - before}행 (구형)`);
-      } catch (e2) {
-        console.error(`  DB [${dbId}] 접근불가: ${e2.message}`);
-      }
+      console.error(`  DB [${name}] 접근불가: ${e.message}`);
     }
   }
-
-  // 3) 독립 페이지 (DB에 속하지 않은 것) — search
-  c = undefined;
-  do {
-    const res = await notion.search({ filter: { property: "object", value: "page" }, page_size: 100, start_cursor: c });
-    for (const p of res.results) byId.set(p.id, p);
-    c = res.has_more ? res.next_cursor : undefined;
-  } while (c);
-
   return [...byId.values()];
 }
 
@@ -250,13 +221,14 @@ async function run() {
       pendingRows.length = 0;                        // 이 페이지에서 발견될 하위 행 수집 준비
       const content = await pageMarkdown(page.id);
       const found = pendingRows.splice(0);           // 이 페이지 안에서 발견된 하위 노트들
-      for (const r of found) if (!processed.has(r.id)) { queue.push(r); discovered++; }
+      for (const r of found) if (!processed.has(r.id)) { r._source = page._source; queue.push(r); discovered++; }
       const category = pageProp(page, "카테고리") || pageProp(page, "Category") || null;
       const date = validDate(pageProp(page, "날짜")) || dateFromTitle(title);
       const summary = (content || "").replace(/[#>*`\-]/g, "").replace(/\s+/g, " ").trim().slice(0, 220);
       const row = {
         notion_id: page.id,
         source: "notion",
+        source_db: page._source || null,
         title,
         category,
         summary: summary || null,
