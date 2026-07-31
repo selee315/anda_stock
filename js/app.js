@@ -138,7 +138,7 @@
   }
 
   async function pollAi(id, item) {
-    for (let i = 0; i < 195; i++) {             // 최대 ~6.5분 (에이전트가 검색·정독·웹서치)
+    for (let i = 0; i < 320; i++) {             // 최대 ~10.5분 (에이전트가 검색·정독·웹서치)
       await new Promise((r) => setTimeout(r, 2000));
       let row; try { row = await window.API.aiGet(id); } catch { continue; }
       item.status = row.status; item.a = row.answer || ""; item.sources = row.sources || [];

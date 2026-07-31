@@ -34,12 +34,12 @@ async function processOne(req) {
 ${req.question}`;
     const { stdout } = await pexec("claude",
       ["-p", prompt, "--dangerously-skip-permissions"],
-      { cwd: AGENT_DIR, maxBuffer: 32 * 1024 * 1024, timeout: 6 * 60 * 1000, env: process.env });
+      { cwd: AGENT_DIR, maxBuffer: 32 * 1024 * 1024, timeout: 10 * 60 * 1000, env: process.env });
     const answer = (stdout || "").trim() || "(응답 없음)";
     await sb.from("ai_requests").update({ status: "done", answer }).eq("id", req.id);
     console.log(`✓ #${req.id} 완료 (${Math.round((Date.now() - started) / 1000)}초)`);
   } catch (e) {
-    const msg = e.killed ? "시간 초과(6분)" : e.message;
+    const msg = e.killed ? "시간 초과(10분)" : e.message;
     await sb.from("ai_requests").update({ status: "error", answer: "처리 실패: " + msg }).eq("id", req.id);
     console.error(`✗ #${req.id} 실패: ${msg}`);
   }
