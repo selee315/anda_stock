@@ -1,44 +1,51 @@
 // ─────────────────────────────────────────────────────────────
-//  API 레이어 — 섹션 핸들러가 데이터를 가져오는 단일 창구
-//
-//  향후 두 경로로 데이터를 받습니다:
-//   1) table(name)  : Supabase 테이블/뷰 직접 조회 (배치가 채워둔 데이터)
-//   2) fn(name, q)  : Supabase Edge Function 호출 (외부 API 실시간 프록시)
-//
-//  아직 Edge Function / 테이블이 없으므로 호출 시 NotImplemented 를 던집니다.
-//  섹션을 하나씩 붙일 때 이 레이어만 확장하면 됩니다.
+//  API 레이어 — research_notes 조회 (검색·출처필터·페이지네이션)
 // ─────────────────────────────────────────────────────────────
 window.API = (() => {
-  const cfg = window.APP_CONFIG;
+  const PAGE = 30;
 
-  // Supabase 테이블/뷰 조회 (PostgREST)
-  async function table(name, { select = "*", filters = {}, order, limit } = {}) {
+  // 출처별 개수 집계 (필터 탭 뱃지용)
+  async function counts() {
+    const sb = window.SB.client();
+    if (!sb) return { total: 0, bySource: {} };
+    const { count: total } = await sb.from("research_notes").select("*", { count: "exact", head: true });
+    const bySource = {};
+    for (const s of window.SOURCES) {
+      const { count } = await sb.from("research_notes")
+        .select("*", { count: "exact", head: true }).eq("source_db", s);
+      bySource[s] = count || 0;
+    }
+    return { total: total || 0, bySource };
+  }
+
+  // 목록 조회: { source, q, page } → { rows, hasMore }
+  async function list({ source = null, q = "", page = 0 } = {}) {
     const sb = window.SB.client();
     if (!sb) throw new Error("Supabase 미연결");
-    let q = sb.from(name).select(select);
-    for (const [k, v] of Object.entries(filters)) q = q.eq(k, v);
-    if (order) q = q.order(order.column, { ascending: order.ascending !== false });
-    if (limit) q = q.limit(limit);
-    const { data, error } = await q;
+    let query = sb.from("research_notes")
+      .select("id,notion_id,title,summary,source_db,category,meeting_date,url,icon,last_edited");
+    if (source) query = query.eq("source_db", source);
+    if (q && q.trim()) {
+      const t = q.trim().replace(/[%,]/g, " ");
+      query = query.or(`title.ilike.%${t}%,content.ilike.%${t}%`);
+    }
+    query = query
+      .order("meeting_date", { ascending: false, nullsFirst: false })
+      .order("last_edited", { ascending: false, nullsFirst: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { rows: data || [], hasMore: (data || []).length === PAGE };
+  }
+
+  // 단건 본문 조회
+  async function get(id) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const { data, error } = await sb.from("research_notes").select("*").eq("id", id).single();
     if (error) throw new Error(error.message);
     return data;
   }
 
-  // Edge Function 호출 (외부 데이터 실시간)
-  async function fn(name, body = {}) {
-    if (!cfg.isConfigured) throw new Error("Supabase 미연결");
-    const url = `${cfg.SUPABASE_URL}/functions/v1/${name}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${cfg.SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`Edge Function ${name}: ${res.status}`);
-    return res.json();
-  }
-
-  return { table, fn };
+  return { counts, list, get, PAGE };
 })();
