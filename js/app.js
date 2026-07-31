@@ -14,24 +14,38 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtDate = (d) => { if (!d) return ""; const t = new Date(d); if (isNaN(t)) return esc(d); const p = (n) => String(n).padStart(2, "0"); return `${t.getFullYear()}.${p(t.getMonth() + 1)}.${p(t.getDate())}`; };
 
+  const mdInline = (t) => esc(t)
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+  const isTableRow = (l) => /^\s*\|.*\|\s*$/.test(l);
+  const isTableSep = (l) => /^\s*\|?[\s:-]*-[\s:|-]*$/.test(l) && l.includes("-");
+  const cells = (l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+
   function mdToHtml(md) {
     if (!md) return "";
     const lines = String(md).split("\n"); let html = "", inList = false, inCode = false, code = [];
-    const inline = (t) => esc(t)
-      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-      .replace(/`([^`]+)`/g, "<code>$1</code>");
     const closeList = () => { if (inList) { html += "</ul>"; inList = false; } };
-    for (const raw of lines) {
-      const line = raw.replace(/\s+$/, "");
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i]; const line = raw.replace(/\s+$/, "");
       if (line.startsWith("```")) { if (inCode) { html += `<pre>${esc(code.join("\n"))}</pre>`; code = []; inCode = false; } else { closeList(); inCode = true; } continue; }
       if (inCode) { code.push(raw); continue; }
+      // 마크다운 표
+      if (isTableRow(line) && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+        closeList();
+        const head = cells(line); i += 2;
+        let rows = "";
+        while (i < lines.length && isTableRow(lines[i])) { rows += `<tr>${cells(lines[i]).map((c) => `<td>${mdInline(c)}</td>`).join("")}</tr>`; i++; }
+        i--;
+        html += `<div class="md-table-wrap"><table class="md-table"><thead><tr>${head.map((c) => `<th>${mdInline(c)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+        continue;
+      }
       if (!line.trim()) { closeList(); continue; }
-      if (/^#{1,3}\s/.test(line)) { closeList(); const lv = line.match(/^#+/)[0].length; html += `<h${lv + 2}>${inline(line.replace(/^#+\s/, ""))}</h${lv + 2}>`; }
+      if (/^#{1,3}\s/.test(line)) { closeList(); const lv = line.match(/^#+/)[0].length; html += `<h${lv + 2}>${mdInline(line.replace(/^#+\s/, ""))}</h${lv + 2}>`; }
       else if (/^---+$/.test(line)) { closeList(); html += "<hr>"; }
-      else if (/^[-*]\s|^\d+\.\s/.test(line)) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(line.replace(/^([-*]|\d+\.)\s(\[.\]\s)?/, ""))}</li>`; }
-      else if (line.startsWith(">")) { closeList(); html += `<blockquote>${inline(line.replace(/^>\s?/, ""))}</blockquote>`; }
-      else { closeList(); html += `<p>${inline(line)}</p>`; }
+      else if (/^[-*]\s|^\d+\.\s/.test(line)) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${mdInline(line.replace(/^([-*]|\d+\.)\s(\[.\]\s)?/, ""))}</li>`; }
+      else if (line.startsWith(">")) { closeList(); html += `<blockquote>${mdInline(line.replace(/^>\s?/, ""))}</blockquote>`; }
+      else { closeList(); html += `<p>${mdInline(line)}</p>`; }
     }
     closeList(); if (inCode) html += `<pre>${esc(code.join("\n"))}</pre>`;
     return html;
@@ -111,37 +125,51 @@
   }
 
   // ── AI 리서치 ──
-  const aiLog = [];   // 이 세션 대화 {q, a, sources, status}
+  const aiLog = [];            // {q, a, status, progress}
+  let aiLoaded = false;
+  const AI_EXAMPLES = [
+    "방산 섹터 2분기 실적 종합해줘",
+    "휴젤 vs 파마리서치 미용의료 비교",
+    "정유 섹터 투자포인트와 하반기 전망",
+    "최근 회의에서 신규 편입 검토된 종목",
+  ];
+
   function renderAI(v) {
     v.innerHTML = `
       <div id="ai">
         <div class="ai-head"><div class="rb-title">🤖 AI 리서치</div>
-          <div class="ai-sub">사내 리서치 자료를 근거로 답합니다 · Claude (Max)</div></div>
+          <div class="ai-sub">사내 리서치 자료를 스스로 검색·정독하고 웹까지 활용해 답합니다 · Claude (Max)</div></div>
         <div class="ai-log" id="aiLog"></div>
         <form class="ai-form" id="aiForm">
-          <input id="aiQ" placeholder="예: 방산 섹터 최근 리서치 종합해줘 / 플래티어 어떤 회사야?" autocomplete="off" />
+          <input id="aiQ" placeholder="종목·섹터·이슈를 물어보세요…" autocomplete="off" />
           <button class="gold ai-send" id="aiSend">질문</button>
         </form>
       </div>`;
     drawAiLog();
-    $("#aiForm").onsubmit = async (e) => {
-      e.preventDefault();
-      const q = $("#aiQ").value.trim(); if (!q) return;
-      $("#aiQ").value = "";
-      const item = { q, a: "", sources: [], status: "pending" };
-      aiLog.push(item); drawAiLog();
-      try {
-        const req = await window.API.aiAsk(q);
-        await pollAi(req.id, item);
-      } catch (ex) { item.status = "error"; item.a = ex.message; drawAiLog(); }
-    };
+    $("#aiForm").onsubmit = (e) => { e.preventDefault(); const q = $("#aiQ").value.trim(); if (q) { $("#aiQ").value = ""; askQuestion(q); } };
+    if (!aiLoaded && !aiLog.length) {
+      aiLoaded = true;
+      window.API.aiHistory().then((h) => {
+        for (const r of h) aiLog.push({ q: r.question, a: r.answer || "", status: r.status, progress: "" });
+        drawAiLog();
+      }).catch(() => {});
+    }
+  }
+
+  async function askQuestion(q) {
+    const item = { q, a: "", status: "pending", progress: "" };
+    aiLog.push(item); drawAiLog();
+    try {
+      const req = await window.API.aiAsk(q);
+      await pollAi(req.id, item);
+    } catch (ex) { item.status = "error"; item.a = ex.message; drawAiLog(); }
   }
 
   async function pollAi(id, item) {
-    for (let i = 0; i < 320; i++) {             // 최대 ~10.5분 (에이전트가 검색·정독·웹서치)
+    for (let i = 0; i < 380; i++) {             // 최대 ~12.6분
       await new Promise((r) => setTimeout(r, 2000));
       let row; try { row = await window.API.aiGet(id); } catch { continue; }
-      item.status = row.status; item.a = row.answer || ""; item.sources = row.sources || [];
+      item.status = row.status; item.a = row.answer || ""; item.progress = row.progress || item.progress;
       drawAiLog();
       if (row.status === "done" || row.status === "error") return;
     }
@@ -151,16 +179,18 @@
   function drawAiLog() {
     const box = $("#aiLog"); if (!box) return;
     if (!aiLog.length) {
-      box.innerHTML = `<div class="ai-empty">🤖<div>사내 리서치 자료 2,477건을 근거로 답합니다.<br>종목·섹터·이슈를 물어보세요.</div></div>`;
+      box.innerHTML = `<div class="ai-empty">🤖<div>사내 리서치 자료를 스스로 뒤져서 답합니다.<br>아래 예시를 눌러보거나 직접 물어보세요.</div>
+        <div class="ai-chips">${AI_EXAMPLES.map((e) => `<button class="ai-chip">${esc(e)}</button>`).join("")}</div></div>`;
+      box.querySelectorAll(".ai-chip").forEach((c) => c.onclick = () => askQuestion(c.textContent));
       return;
     }
     box.innerHTML = aiLog.map((it) => `
       <div class="ai-q">🙋 ${esc(it.q)}</div>
       <div class="ai-a">
         ${it.status === "pending" || it.status === "processing"
-          ? `<div class="ai-think">💭 ${it.status === "processing" ? "사내 리서치 검색·정독 중… (최대 몇 분)" : "대기 중…"}</div>`
+          ? `<div class="ai-think">💭 ${it.status === "processing" ? "작업 중…" : "대기 중…"}</div>
+             ${it.progress ? `<div class="ai-progress">${it.progress.split("\n").map((p) => `<div>${esc(p)}</div>`).join("")}</div>` : ""}`
           : (it.status === "error" ? `<div class="ai-err">⚠️ ${esc(it.a)}</div>` : mdToHtml(it.a))}
-        ${it.sources && it.sources.length ? `<div class="ai-src">참고: ${it.sources.slice(0,6).map((s)=>`<a href="${esc(s.url||'#')}" target="_blank" rel="noopener">${esc((s.title||'').slice(0,20))}</a>`).join(" · ")}</div>` : ""}
       </div>`).join("");
     box.scrollTop = box.scrollHeight;
   }

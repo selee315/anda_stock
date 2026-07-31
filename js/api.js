@@ -81,6 +81,18 @@ window.API = (() => {
     if (error) throw new Error(error.message);
     return data;
   }
+  // 내 지난 AI 대화 불러오기 (최근순 → 오래된순으로 뒤집어 반환)
+  async function aiHistory(limit = 20) {
+    const sb = window.SB.client();
+    if (!sb) return [];
+    const { data: s } = await sb.auth.getSession();
+    const uid = s?.session?.user?.id;
+    if (!uid) return [];
+    const { data } = await sb.from("ai_requests")
+      .select("id,question,answer,status").eq("user_id", uid)
+      .order("id", { ascending: false }).limit(limit);
+    return (data || []).reverse();
+  }
   // AI 질의 상태 조회 (폴링)
   async function aiGet(id) {
     const sb = window.SB.client();
@@ -89,5 +101,5 @@ window.API = (() => {
     return data;
   }
 
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, PAGE };
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, PAGE };
 })();
