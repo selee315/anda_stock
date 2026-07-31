@@ -271,7 +271,11 @@
             <div class="co-grid">${bySector[s].map((c) => `<button class="co-card" data-id="${esc(c.notion_id)}" data-t="${esc(c.title)}">${esc(c.title)}</button>`).join("")}</div>
           </div>`).join("");
       list.querySelectorAll(".co-card").forEach((b) => b.onclick = () => { state.company = { id: b.dataset.id, title: b.dataset.t }; renderCompanyNotes(); });
-    } catch (e) { list.innerHTML = `<div class="rb-spin">불러오기 실패: ${esc(e.message)}</div>`; }
+    } catch (e) {
+      // 계층 컬럼(sector/parent_id) 미적용 등 → 평면 목록으로 폴백
+      state.page = 0; state.hasMore = true; if (list) list.innerHTML = "";
+      loadMore();
+    }
   }
 
   // 특정 회사의 노트들
