@@ -268,9 +268,9 @@
         sectors.map((s) => `
           <div class="co-sector">
             <div class="co-sector-h">${esc(s)} <span class="rb-count">${bySector[s].length}</span></div>
-            <div class="co-grid">${bySector[s].map((c) => `<button class="co-card" data-id="${esc(c.notion_id)}" data-t="${esc(c.title)}">${esc(c.title)}</button>`).join("")}</div>
+            <div class="co-grid">${bySector[s].map((c) => `<button class="co-card" data-n="${esc(c.name)}">${esc(c.name)}${c.count ? ` <span class="co-cnt">${c.count}</span>` : ""}</button>`).join("")}</div>
           </div>`).join("");
-      list.querySelectorAll(".co-card").forEach((b) => b.onclick = () => { state.company = { id: b.dataset.id, title: b.dataset.t }; renderCompanyNotes(); });
+      list.querySelectorAll(".co-card").forEach((b) => b.onclick = () => { state.company = { name: b.dataset.n }; renderCompanyNotes(); });
     } catch (e) {
       // 계층 컬럼(sector/parent_id) 미적용 등 → 평면 목록으로 폴백
       state.page = 0; state.hasMore = true; if (list) list.innerHTML = "";
@@ -283,9 +283,9 @@
     const list = $("#list"); if (!list) return;
     list.innerHTML = `<div class="rb-spin">불러오는 중…</div>`;
     try {
-      const notes = await window.API.companyNotes(state.company.id);
+      const notes = await window.API.companyNotes(state.company.name);
       list.innerHTML = `<button class="co-back" id="coBack">← 회사 목록</button>
-        <div class="co-title">🏢 ${esc(state.company.title)} <span class="rb-count">${notes.length}건</span></div>` +
+        <div class="co-title">🏢 ${esc(state.company.name)} <span class="rb-count">${notes.length}건</span></div>` +
         (notes.length ? notes.map((n) => `
           <div class="rb-item co-note" data-id="${n.id}">
             <div class="rb-item-main"><div class="rb-item-title">${esc(n.title)}</div>${n.summary ? `<div class="rb-item-sum">${esc(n.summary)}</div>` : ""}</div>

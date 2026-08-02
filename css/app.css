@@ -127,6 +127,7 @@ button { font-family: inherit; cursor: pointer; }
 .co-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .co-card { text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; font-size: 13px; font-weight: 600; color: var(--ink); box-shadow: var(--shadow); }
 .co-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.co-cnt { font-size: 11px; color: var(--faint); font-weight: 700; }
 .co-back { background: var(--card2); border: 1px solid var(--line); color: var(--dim); border-radius: 8px; padding: 7px 12px; font-size: 12.5px; font-weight: 600; margin: 6px 0 12px; }
 .co-back:hover { color: var(--ink); }
 .co-title { font-family: Georgia, serif; font-size: 18px; font-weight: 800; margin: 0 0 10px 4px; }

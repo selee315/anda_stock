@@ -47,24 +47,39 @@ window.API = (() => {
     return data;
   }
 
-  // 기업탐방노트: 회사 목록 (parent 없는 회사 페이지) — 섹터별 그룹용
+  // 기업탐방노트: 회사 목록 — "회사명" 기준으로 그룹(중복 컨테이너 병합, 노트는 parent_title 기준)
   async function companies() {
     const sb = window.SB.client();
     if (!sb) throw new Error("Supabase 미연결");
-    const { data, error } = await sb.from("research_notes")
-      .select("id,notion_id,title,sector,summary")
-      .eq("source_db", "기업탐방노트").is("parent_id", null)
-      .order("title").limit(3000);
-    if (error) throw new Error(error.message);
-    return data || [];
+    const map = new Map();   // name -> { sector, count }
+    let from = 0;
+    for (;;) {
+      const { data, error } = await sb.from("research_notes")
+        .select("title,sector,parent_title").eq("source_db", "기업탐방노트").range(from, from + 999);
+      if (error) throw new Error(error.message);
+      if (!data.length) break;
+      for (const r of data) {
+        if (r.parent_title) {                       // 노트 → 회사 = parent_title
+          const e = map.get(r.parent_title) || { sector: null, count: 0 };
+          e.count++; map.set(r.parent_title, e);
+        } else {                                    // 컨테이너(회사) → 이름=title
+          const e = map.get(r.title) || { sector: null, count: 0 };
+          if (r.sector) e.sector = r.sector; map.set(r.title, e);
+        }
+      }
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+    return [...map.entries()]
+      .map(([name, v]) => ({ name, sector: v.sector, count: v.count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
-  // 특정 회사의 하위 노트들
-  async function companyNotes(parentNotionId) {
+  // 회사명의 노트들 (parent_title = 회사명)
+  async function companyNotes(name) {
     const sb = window.SB.client();
     if (!sb) throw new Error("Supabase 미연결");
     const { data, error } = await sb.from("research_notes")
-      .select("id,title,summary,meeting_date,source_db")
-      .eq("parent_id", parentNotionId)
+      .select("id,title,summary,meeting_date").eq("source_db", "기업탐방노트").eq("parent_title", name)
       .order("meeting_date", { ascending: false, nullsFirst: false });
     if (error) throw new Error(error.message);
     return data || [];

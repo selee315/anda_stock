@@ -208,6 +208,7 @@ async function run() {
   // 큐 방식: 처리 중 발견한 하위 DB 행(개별 노트)도 큐에 넣어 본문까지 싱크
   const queue = [...pages];
   const processed = new Set();
+  const parentMap = new Map();   // childId -> {pid, ptitle} (처리순서 무관하게 끝에 보정)
   let ok = 0, fail = 0, skip = 0, discovered = 0;
   while (queue.length) {
     const page = queue.shift();
@@ -221,9 +222,12 @@ async function run() {
       pendingRows.length = 0;                        // 이 페이지에서 발견될 하위 행 수집 준비
       const content = await pageMarkdown(page.id);
       const found = pendingRows.splice(0);           // 이 페이지 안에서 발견된 하위 노트들
-      for (const r of found) if (!processed.has(r.id)) {
-        r._source = page._source; r._parent_id = page.id; r._parent_title = title;  // 부모(회사) 태그
-        queue.push(r); discovered++;
+      for (const r of found) {
+        parentMap.set(r.id, { pid: page.id, ptitle: title });   // 항상 부모관계 기록
+        if (!processed.has(r.id)) {
+          r._source = page._source; r._parent_id = page.id; r._parent_title = title;
+          queue.push(r); discovered++;
+        }
       }
       const category = pageProp(page, "카테고리") || pageProp(page, "Category") || null;
       const date = validDate(pageProp(page, "날짜")) || dateFromTitle(title);
@@ -253,6 +257,15 @@ async function run() {
       console.error(`실패 [${page.id}]:`, e.message);
     }
   }
+  // 고아 노트 부모 보정: 발견된 부모관계로, parent 없던(처리순서 탓) 노트에 부모 채움
+  let fixed = 0;
+  for (const [cid, pt] of parentMap) {
+    const { error } = await sb.from("research_notes")
+      .update({ parent_id: pt.pid, parent_title: pt.ptitle })
+      .eq("notion_id", cid).is("parent_id", null);
+    if (!error) fixed++;
+  }
+  console.log(`부모 보정 시도: ${parentMap.size}건`);
   console.log(`동기화 완료: 성공 ${ok} / 생략 ${skip} / 실패 ${fail} / 하위발견 ${discovered}`);
   if ((ok + skip) === 0 && processed.size > 0) {
     console.error("⚠️ 모든 upsert 실패 — 워크플로우를 실패 처리합니다.");
