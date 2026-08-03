@@ -54,7 +54,7 @@
   // 섹션 정의 (홈 카드) — 확장 가능
   const SECTIONS = [
     { id: "research", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot·자료실 전체 검색·열람", ready: true, big: true },
-    { id: "market", icon: "📈", name: "시장 데이터", desc: "지수·환율·원자재·금리 (준비중)", ready: false },
+    { id: "market", icon: "📈", name: "시장 데이터", desc: "세계지수·환율·원자재 실시간(지연) 시세", ready: true },
     { id: "ai", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
   ];
 
@@ -96,6 +96,8 @@
           <nav class="nav-links">
             <button class="nav-link" data-v="home">홈</button>
             <button class="nav-link" data-v="research">사내 리서치 자료</button>
+            <button class="nav-link" data-v="market">시장 데이터</button>
+            <button class="nav-link" data-v="ai">AI 리서치</button>
           </nav>
           <div class="nav-actions">
             <span class="rb-user">${esc(window.Auth.userLabel(SESSION))}</span>
@@ -120,8 +122,50 @@
     document.querySelectorAll(".nav-link").forEach((b) => b.classList.toggle("active", b.dataset.v === state.view));
     const v = $("#view"); v.className = "";
     if (state.view === "research") return renderResearch(v);
+    if (state.view === "market") return renderMarket(v);
     if (state.view === "ai") return renderAI(v);
     return renderHome(v);
+  }
+
+  // ── 시장 데이터 (EODHD 스냅샷) ──
+  async function renderMarket(v) {
+    v.innerHTML = `
+      <div id="market">
+        <div class="ai-head"><div class="rb-title">📈 시장 데이터</div>
+          <div class="ai-sub">세계지수·환율·원자재 지연 시세 · EODHD · 하루 1회 스냅샷</div></div>
+        <div id="mktBody" class="mkt-body"><div class="mkt-loading">불러오는 중…</div></div>
+      </div>`;
+    let rows;
+    try { rows = await window.API.marketQuotes(); }
+    catch (ex) { $("#mktBody").innerHTML = `<div class="ai-err">⚠️ ${esc(ex.message)}</div>`; return; }
+    if (!rows.length) {
+      $("#mktBody").innerHTML = `<div class="ai-empty">📈<div>아직 시세 데이터가 없습니다.<br>서버 수집(fetcher)이 아직 실행되지 않았어요.</div></div>`;
+      return;
+    }
+    const groups = {};
+    for (const r of rows) (groups[r.region || "기타"] ??= []).push(r);
+    const ORDER = ["미국", "한국", "아시아", "유럽", "환율", "원자재", "기타"];
+    const rank = (r) => { const i = ORDER.indexOf(r); return i < 0 ? 999 : i; };
+    const regions = Object.keys(groups).sort((a, b) => rank(a) - rank(b));
+    const fmt = (n, d = 2) => n == null ? "-" : Number(n).toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
+    const updated = rows.reduce((m, r) => r.updated_at > m ? r.updated_at : m, "");
+    $("#mktBody").innerHTML = regions.map((reg) => `
+      <div class="mkt-group">
+        <div class="mkt-region">${esc(reg)}</div>
+        <div class="mkt-grid">
+          ${groups[reg].map((r) => {
+            const up = (r.change_p ?? 0) > 0, dn = (r.change_p ?? 0) < 0;
+            const cls = up ? "up" : dn ? "dn" : "";
+            const dec = r.kind === "fx" ? (r.symbol.startsWith("USDKRW") || r.symbol.startsWith("USDJPY") ? 2 : 4) : 2;
+            return `<div class="mkt-card ${cls}">
+              <div class="mkt-name">${esc(r.name)}</div>
+              <div class="mkt-price">${fmt(r.price, dec)}</div>
+              <div class="mkt-chg">${r.change_p == null ? "" : `${up ? "▲" : dn ? "▼" : ""} ${fmt(Math.abs(r.change ?? 0), dec)} (${up ? "+" : ""}${fmt(r.change_p, 2)}%)`}</div>
+            </div>`;
+          }).join("")}
+        </div>
+      </div>`).join("")
+      + `<div class="mkt-updated">기준: ${updated ? new Date(updated).toLocaleString("ko-KR") : "-"} · 지연 시세</div>`;
   }
 
   // ── AI 리서치 ──
@@ -138,7 +182,7 @@
     v.innerHTML = `
       <div id="ai">
         <div class="ai-head"><div class="rb-title">🤖 AI 리서치</div>
-          <div class="ai-sub">사내 리서치 자료를 스스로 검색·정독하고 웹까지 활용해 답합니다 · Claude (Max)</div></div>
+          <div class="ai-sub">사내 리서치 자료를 스스로 검색·정독하고 웹까지 활용해 답합니다 · Claude Opus (Max)</div></div>
         <div class="ai-log" id="aiLog"></div>
         <form class="ai-form" id="aiForm">
           <input id="aiQ" placeholder="종목·섹터·이슈를 물어보세요…" autocomplete="off" />

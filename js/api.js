@@ -116,5 +116,16 @@ window.API = (() => {
     return data;
   }
 
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, PAGE };
+  // 시장 데이터 (EODHD 스냅샷)
+  async function marketQuotes() {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const { data, error } = await sb.from("market_quotes")
+      .select("symbol,name,region,kind,price,change,change_p,prev_close,ord,updated_at")
+      .order("ord", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, PAGE };
 })();

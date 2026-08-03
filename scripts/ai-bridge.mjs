@@ -46,7 +46,7 @@ async function priorContext(req) {
 function runAgent(prompt, onProgress) {
   return new Promise((resolve, reject) => {
     const p = spawn("claude",
-      ["-p", prompt, "--output-format", "stream-json", "--verbose", "--dangerously-skip-permissions"],
+      ["-p", prompt, "--model", "opus", "--output-format", "stream-json", "--verbose", "--dangerously-skip-permissions"],
       { cwd: AGENT_DIR, env: process.env });
     let buf = "", finalText = "", stderr = "";
     const timer = setTimeout(() => { p.kill("SIGKILL"); reject(new Error("시간 초과(12분)")); }, 12 * 60 * 1000);

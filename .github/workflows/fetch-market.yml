@@ -1,0 +1,25 @@
+name: EODHD 시장데이터 수집
+
+on:
+  workflow_dispatch:            # 수동 실행 (Actions 탭에서 Run)
+  schedule:
+    - cron: "30 21 * * *"       # 매일 21:30 UTC (≈ 다음날 06:30 KST, 미국장 마감 후 1회)
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install deps
+        working-directory: scripts
+        run: npm install
+      - name: Fetch market data
+        working-directory: scripts
+        env:
+          EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node fetch-eodhd.mjs
