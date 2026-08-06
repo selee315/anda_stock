@@ -8,5 +8,12 @@ data/_*.cache
 __pycache__/
 *.pyc
 
+# 수집 데이터 — 저작권 PDF·리포트 원문·스크랩 결과 (절대 커밋 금지)
+data/
+briefs/
+
+# 파이썬 가상환경 (FnGuide 스크래퍼용)
+.venv/
+
 # 시스템
 .DS_Store

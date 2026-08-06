@@ -169,6 +169,37 @@ window.API = (() => {
     return { rows: data || [], hasMore: (data || []).length === PAGE };
   }
 
+  // 증권사 리포트 (FnGuide) — { q, tpDir, page } → { rows, hasMore }
+  async function reports({ q = "", tpDir = null, page = 0 } = {}) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    let query = sb.from("reports")
+      .select("rpt_id,report_date,stock_name,stock_code,title,summary,analyst,house,opinion,target_price,tp_dir,current_price,upside,sector,url");
+    if (tpDir) query = query.eq("tp_dir", tpDir);
+    if (q && q.trim()) {
+      const t = q.trim().replace(/[%,]/g, " ");
+      query = query.or(`stock_name.ilike.%${t}%,title.ilike.%${t}%,house.ilike.%${t}%`);
+    }
+    query = query
+      .order("report_date", { ascending: false, nullsFirst: false })
+      .order("tp_dir", { ascending: true })
+      .order("rpt_id", { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { rows: data || [], hasMore: (data || []).length === PAGE };
+  }
+  // 목표주가 변동 하이라이트 (상향/하향)
+  async function reportsChanged(limit = 40) {
+    const sb = window.SB.client();
+    if (!sb) return [];
+    const { data } = await sb.from("reports")
+      .select("rpt_id,stock_name,stock_code,house,opinion,target_price,tp_dir,current_price,upside,url,title")
+      .in("tp_dir", ["상향", "하향"])
+      .order("report_date", { ascending: false }).order("rpt_id", { ascending: false }).limit(limit);
+    return data || [];
+  }
+
   // 시장 데이터 (EODHD 스냅샷)
   async function marketQuotes() {
     const sb = window.SB.client();
@@ -180,5 +211,5 @@ window.API = (() => {
     return data || [];
   }
 
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, PAGE };
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, PAGE };
 })();

@@ -54,6 +54,7 @@
   // 섹션 정의 (홈 카드) — 확장 가능
   const SECTIONS = [
     { id: "research", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot·자료실 전체 검색·열람", ready: true, big: true },
+    { id: "reports", icon: "📄", name: "리서치 리포트", desc: "증권사 리포트·목표주가 변동 (FnGuide)", ready: true },
     { id: "disclosure", icon: "📑", name: "국내 공시", desc: "코스피·코스닥 DART 공시 실시간 피드", ready: true },
     { id: "consensus", icon: "🔮", name: "컨센서스", desc: "증권사 목표주가·투자의견 집계 (FnGuide)", ready: true },
     { id: "market", icon: "📈", name: "시장 데이터", desc: "세계지수·환율·원자재 실시간(지연) 시세", ready: true },
@@ -98,6 +99,7 @@
           <nav class="nav-links">
             <button class="nav-link" data-v="home">홈</button>
             <button class="nav-link" data-v="research">사내 리서치 자료</button>
+            <button class="nav-link" data-v="reports">리서치 리포트</button>
             <button class="nav-link" data-v="disclosure">국내 공시</button>
             <button class="nav-link" data-v="consensus">컨센서스</button>
             <button class="nav-link" data-v="market">시장 데이터</button>
@@ -128,9 +130,87 @@
     if (state.view === "research") return renderResearch(v);
     if (state.view === "disclosure") return renderDisclosure(v);
     if (state.view === "consensus") return renderConsensus(v);
+    if (state.view === "reports") return renderReports(v);
     if (state.view === "market") return renderMarket(v);
     if (state.view === "ai") return renderAI(v);
     return renderHome(v);
+  }
+
+  // ── 증권사 리포트 (FnGuide) ──
+  const rpstate = { q: "", tpDir: null, page: 0, hasMore: true, loading: false };
+  function renderReports(v) {
+    v.innerHTML = `
+      <div id="rb">
+        <div class="rb-head">
+          <div class="rb-title">📄 리서치 리포트</div>
+          <div class="rb-search"><input id="rpq" placeholder="종목·제목·증권사 검색…" value="${esc(rpstate.q)}" /></div>
+        </div>
+        <div id="rpChanged"></div>
+        <div class="rb-tabs" id="rptabs"></div>
+        <main class="rb-list" id="rplist"></main>
+      </div>`;
+    const qEl = $("#rpq"); let t;
+    qEl.oninput = () => { clearTimeout(t); t = setTimeout(() => { rpstate.q = qEl.value; rpReload(); }, 300); };
+    const tabs = [[null, "전체"], ["상향", "▲ 목표가 상향"], ["하향", "▼ 목표가 하향"]];
+    $("#rptabs").innerHTML = tabs.map(([k, l]) => `<button class="rb-tab${rpstate.tpDir === k ? " active" : ""}" data-t="${k || ""}">${l}</button>`).join("");
+    $("#rptabs").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { rpstate.tpDir = b.dataset.t || null; renderReports(v); });
+    // 목표주가 변동 하이라이트 (검색·필터 없을 때만)
+    if (!rpstate.q && !rpstate.tpDir) drawReportsChanged();
+    rpReload();
+    $("#rplist").onscroll = () => { const m = $("#rplist"); if (!rpstate.loading && rpstate.hasMore && m.scrollTop + m.clientHeight > m.scrollHeight - 300) rpLoadMore(); };
+  }
+  async function drawReportsChanged() {
+    let rows; try { rows = await window.API.reportsChanged(30); } catch { return; }
+    const box = $("#rpChanged"); if (!box || !rows.length) return;
+    box.innerHTML = `<div class="rp-chg-h">🎯 오늘 목표주가 변동 <span class="rb-count">${rows.length}</span></div>
+      <div class="rp-chg-strip">${rows.map((r) => {
+        const up = r.tp_dir === "상향";
+        return `<a class="rp-chip ${up ? "up" : "dn"}" href="${esc(r.url)}" target="_blank" rel="noopener">
+          <span class="rp-chip-arrow">${up ? "▲" : "▼"}</span>
+          <span class="rp-chip-name">${esc(r.stock_name || "")}</span>
+          <span class="rp-chip-tp">${r.target_price ? Number(r.target_price).toLocaleString("ko-KR") : "-"}</span>
+          ${r.upside != null ? `<span class="rp-chip-up ${r.upside > 0 ? "up" : "dn"}">${r.upside > 0 ? "+" : ""}${r.upside}%</span>` : ""}
+          <span class="rp-chip-house">${esc(r.house || "")}</span>
+        </a>`;
+      }).join("")}</div>`;
+  }
+  function rpReload() { const l = $("#rplist"); if (l) l.innerHTML = ""; rpstate.page = 0; rpstate.hasMore = true; rpLoadMore(); }
+  async function rpLoadMore() {
+    if (rpstate.loading || !rpstate.hasMore) return;
+    rpstate.loading = true;
+    const list = $("#rplist"); if (!list) { rpstate.loading = false; return; }
+    const spin = el("div", "rb-spin", "불러오는 중…"); list.appendChild(spin);
+    try {
+      const { rows, hasMore } = await window.API.reports({ q: rpstate.q, tpDir: rpstate.tpDir, page: rpstate.page });
+      spin.remove();
+      if (rpstate.page === 0 && rows.length === 0) { list.innerHTML = `<div class="rb-empty">📄<div>리포트가 없습니다.<br>서버 수집(fetcher)이 아직 실행되지 않았을 수 있어요.</div></div>`; rpstate.hasMore = false; rpstate.loading = false; return; }
+      for (const r of rows) {
+        const mark = { "상향": " ▲", "하향": " ▼" }[r.tp_dir] || "";
+        const markCls = r.tp_dir === "상향" ? "up" : r.tp_dir === "하향" ? "dn" : "";
+        const meta = [r.house, r.analyst, r.opinion && r.opinion !== "-" ? `의견 ${r.opinion}` : "",
+          r.target_price ? `TP ${Number(r.target_price).toLocaleString("ko-KR")}` : "",
+          r.upside != null ? `상승여력 ${r.upside > 0 ? "+" : ""}${r.upside}%` : ""].filter(Boolean).join(" · ");
+        const item = el("a", "rb-item rp-item");
+        item.href = r.url; item.target = "_blank"; item.rel = "noopener";
+        item.innerHTML = `
+          <div class="rb-item-main">
+            <div class="dsc-top">
+              <span class="dsc-corp">${esc(r.stock_name || "")}</span>
+              ${r.stock_code ? `<span class="cns-code">${esc(r.stock_code)}</span>` : ""}
+              ${mark ? `<span class="rp-mark ${markCls}">${mark.trim()} ${r.tp_dir}</span>` : ""}
+            </div>
+            <div class="rb-item-title">${esc(r.title || "")}</div>
+            <div class="rp-meta">${esc(meta)}</div>
+          </div>`;
+        list.appendChild(item);
+      }
+      rpstate.page++; rpstate.hasMore = hasMore;
+    } catch (e) {
+      spin.remove();
+      list.insertAdjacentHTML("beforeend", `<div class="rb-empty">⚠️<div>${esc(e.message)}</div></div>`);
+      rpstate.hasMore = false;
+    }
+    rpstate.loading = false;
   }
 
   // ── 컨센서스 (FnGuide 목표주가) ──
