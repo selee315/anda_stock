@@ -149,6 +149,26 @@ window.API = (() => {
     return { total: total || 0, byTy };
   }
 
+  // 컨센서스 (FnGuide) — { q, page, sort } → { rows, hasMore }
+  async function consensus({ q = "", page = 0, sort = "est_cnt" } = {}) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    let query = sb.from("consensus")
+      .select("stock_code,corp_name,target_price,opinion,est_cnt,est_cnt_90d,base_date");
+    if (q && q.trim()) {
+      const t = q.trim().replace(/[%,]/g, " ");
+      query = query.or(`corp_name.ilike.%${t}%,stock_code.ilike.%${t}%`);
+    }
+    const asc = false;
+    query = query
+      .order(sort === "target_price" ? "target_price" : "est_cnt", { ascending: asc, nullsFirst: false })
+      .order("est_cnt", { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { rows: data || [], hasMore: (data || []).length === PAGE };
+  }
+
   // 시장 데이터 (EODHD 스냅샷)
   async function marketQuotes() {
     const sb = window.SB.client();
@@ -160,5 +180,5 @@ window.API = (() => {
     return data || [];
   }
 
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, PAGE };
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, PAGE };
 })();

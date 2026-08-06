@@ -199,3 +199,23 @@ button { font-family: inherit; cursor: pointer; }
 .dsc-rm { font-size: 11px; color: var(--down); font-weight: 700; }
 .dsc-flr { font-size: 11px; color: var(--faint); }
 .rb-item-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
+
+/* ── 컨센서스 (FnGuide) ── */
+.cns-hdr { display: flex; align-items: center; padding: 8px 16px; font-size: 11.5px; font-weight: 700; color: var(--dim); border-bottom: 1px solid var(--line); background: var(--card2); }
+.cns-row { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line2); font-size: 13.5px; }
+.cns-row:hover { background: var(--soft); }
+.cns-c-name { flex: 1 1 auto; min-width: 0; }
+.cns-c-num { flex: 0 0 110px; text-align: right; font-variant-numeric: tabular-nums; }
+.cns-c-date { flex: 0 0 84px; text-align: right; font-size: 12px; color: var(--faint); }
+.cns-code { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.cns-tp { font-weight: 800; }
+.cns-op { font-weight: 700; font-variant-numeric: tabular-nums; }
+.cns-op.op-매수 { color: var(--up); }
+.cns-op.op-매도 { color: var(--down); }
+.cns-op-t { font-size: 11px; color: var(--dim); }
+.cns-90d { font-size: 11px; color: var(--faint); }
+@media (max-width: 640px) {
+  .cns-hdr .cns-c-date, .cns-row .cns-c-date { display: none; }
+  .cns-c-num { flex-basis: 84px; }
+  .cns-op-t, .cns-90d { display: none; }
+}

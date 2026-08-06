@@ -55,6 +55,7 @@
   const SECTIONS = [
     { id: "research", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot·자료실 전체 검색·열람", ready: true, big: true },
     { id: "disclosure", icon: "📑", name: "국내 공시", desc: "코스피·코스닥 DART 공시 실시간 피드", ready: true },
+    { id: "consensus", icon: "🔮", name: "컨센서스", desc: "증권사 목표주가·투자의견 집계 (FnGuide)", ready: true },
     { id: "market", icon: "📈", name: "시장 데이터", desc: "세계지수·환율·원자재 실시간(지연) 시세", ready: true },
     { id: "ai", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
   ];
@@ -98,6 +99,7 @@
             <button class="nav-link" data-v="home">홈</button>
             <button class="nav-link" data-v="research">사내 리서치 자료</button>
             <button class="nav-link" data-v="disclosure">국내 공시</button>
+            <button class="nav-link" data-v="consensus">컨센서스</button>
             <button class="nav-link" data-v="market">시장 데이터</button>
             <button class="nav-link" data-v="ai">AI 리서치</button>
           </nav>
@@ -125,9 +127,62 @@
     const v = $("#view"); v.className = "";
     if (state.view === "research") return renderResearch(v);
     if (state.view === "disclosure") return renderDisclosure(v);
+    if (state.view === "consensus") return renderConsensus(v);
     if (state.view === "market") return renderMarket(v);
     if (state.view === "ai") return renderAI(v);
     return renderHome(v);
+  }
+
+  // ── 컨센서스 (FnGuide 목표주가) ──
+  const cstate = { q: "", sort: "est_cnt", page: 0, hasMore: true, loading: false };
+  function renderConsensus(v) {
+    v.innerHTML = `
+      <div id="rb">
+        <div class="rb-head">
+          <div class="rb-title">🔮 컨센서스</div>
+          <div class="rb-search"><input id="cq" placeholder="회사명·종목코드 검색…" value="${esc(cstate.q)}" /></div>
+        </div>
+        <div class="rb-tabs" id="csort"></div>
+        <div class="cns-hdr"><span class="cns-c-name">종목</span><span class="cns-c-num">목표주가</span><span class="cns-c-num">투자의견</span><span class="cns-c-num">커버</span><span class="cns-c-date">기준일</span></div>
+        <main class="rb-list" id="clist"></main>
+      </div>`;
+    const qEl = $("#cq"); let t;
+    qEl.oninput = () => { clearTimeout(t); t = setTimeout(() => { cstate.q = qEl.value; cReload(); }, 300); };
+    const sorts = [["est_cnt", "커버 많은순"], ["target_price", "목표주가 높은순"]];
+    $("#csort").innerHTML = sorts.map(([k, l]) => `<button class="rb-tab${cstate.sort === k ? " active" : ""}" data-s="${k}">${l}</button>`).join("");
+    $("#csort").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { cstate.sort = b.dataset.s; renderConsensus(v); });
+    cReload();
+    $("#clist").onscroll = () => { const m = $("#clist"); if (!cstate.loading && cstate.hasMore && m.scrollTop + m.clientHeight > m.scrollHeight - 300) cLoadMore(); };
+  }
+  function cReload() { const l = $("#clist"); if (l) l.innerHTML = ""; cstate.page = 0; cstate.hasMore = true; cLoadMore(); }
+  const wonFmt = (n) => n == null ? "-" : Number(n).toLocaleString("ko-KR");
+  const opinionTxt = (o) => o == null ? "" : (o >= 4 ? "매수" : o >= 3 ? "중립" : "매도");
+  async function cLoadMore() {
+    if (cstate.loading || !cstate.hasMore) return;
+    cstate.loading = true;
+    const list = $("#clist"); if (!list) { cstate.loading = false; return; }
+    const spin = el("div", "rb-spin", "불러오는 중…"); list.appendChild(spin);
+    try {
+      const { rows, hasMore } = await window.API.consensus({ q: cstate.q, page: cstate.page, sort: cstate.sort });
+      spin.remove();
+      if (cstate.page === 0 && rows.length === 0) { list.innerHTML = `<div class="rb-empty">🔮<div>컨센서스 데이터가 없습니다.<br>서버 수집(fetcher)이 아직 실행되지 않았을 수 있어요.</div></div>`; cstate.hasMore = false; cstate.loading = false; return; }
+      for (const r of rows) {
+        const row = el("div", "cns-row");
+        row.innerHTML = `
+          <span class="cns-c-name"><b>${esc(r.corp_name)}</b> <span class="cns-code">${esc(r.stock_code)}</span></span>
+          <span class="cns-c-num cns-tp">${wonFmt(r.target_price)}</span>
+          <span class="cns-c-num"><span class="cns-op op-${opinionTxt(r.opinion)}">${r.opinion != null ? r.opinion.toFixed(2) : "-"}</span> <span class="cns-op-t">${opinionTxt(r.opinion)}</span></span>
+          <span class="cns-c-num">${r.est_cnt ?? "-"}곳${r.est_cnt_90d ? `<span class="cns-90d"> (90일 ${r.est_cnt_90d})</span>` : ""}</span>
+          <span class="cns-c-date">${r.base_date ? fmtDate(r.base_date) : "-"}</span>`;
+        list.appendChild(row);
+      }
+      cstate.page++; cstate.hasMore = hasMore;
+    } catch (e) {
+      spin.remove();
+      list.insertAdjacentHTML("beforeend", `<div class="rb-empty">⚠️<div>${esc(e.message)}</div></div>`);
+      cstate.hasMore = false;
+    }
+    cstate.loading = false;
   }
 
   // ── 국내 공시 (DART) ──

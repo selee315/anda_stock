@@ -1,0 +1,24 @@
+name: 컨센서스(FnGuide) 수집
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "40 22 * * 1-5"     # 평일 22:40 UTC (≈ 다음날 07:40 KST, FnGuide 일간 갱신 후)
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install deps
+        working-directory: scripts
+        run: npm install
+      - name: Fetch consensus (FnGuide)
+        working-directory: scripts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node fetch-consensus.mjs
