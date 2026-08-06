@@ -143,12 +143,12 @@
           <div class="rb-search"><input id="cq" placeholder="회사명·종목코드 검색…" value="${esc(cstate.q)}" /></div>
         </div>
         <div class="rb-tabs" id="csort"></div>
-        <div class="cns-hdr"><span class="cns-c-name">종목</span><span class="cns-c-num">목표주가</span><span class="cns-c-num">투자의견</span><span class="cns-c-num">커버</span><span class="cns-c-date">기준일</span></div>
+        <div class="cns-hdr"><span class="cns-c-name">종목</span><span class="cns-c-num">현재가</span><span class="cns-c-num">목표주가</span><span class="cns-c-num">상승여력</span><span class="cns-c-num">투자의견</span><span class="cns-c-num">커버</span><span class="cns-c-date">기준일</span></div>
         <main class="rb-list" id="clist"></main>
       </div>`;
     const qEl = $("#cq"); let t;
     qEl.oninput = () => { clearTimeout(t); t = setTimeout(() => { cstate.q = qEl.value; cReload(); }, 300); };
-    const sorts = [["est_cnt", "커버 많은순"], ["target_price", "목표주가 높은순"]];
+    const sorts = [["est_cnt", "커버 많은순"], ["upside", "상승여력 높은순"], ["target_price", "목표주가 높은순"]];
     $("#csort").innerHTML = sorts.map(([k, l]) => `<button class="rb-tab${cstate.sort === k ? " active" : ""}" data-s="${k}">${l}</button>`).join("");
     $("#csort").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { cstate.sort = b.dataset.s; renderConsensus(v); });
     cReload();
@@ -167,10 +167,15 @@
       spin.remove();
       if (cstate.page === 0 && rows.length === 0) { list.innerHTML = `<div class="rb-empty">🔮<div>컨센서스 데이터가 없습니다.<br>서버 수집(fetcher)이 아직 실행되지 않았을 수 있어요.</div></div>`; cstate.hasMore = false; cstate.loading = false; return; }
       for (const r of rows) {
+        const up = r.upside;
+        const upCls = up == null ? "" : up > 0 ? "up" : up < 0 ? "dn" : "";
+        const upTxt = up == null ? "-" : `${up > 0 ? "+" : ""}${up.toFixed(1)}%`;
         const row = el("div", "cns-row");
         row.innerHTML = `
           <span class="cns-c-name"><b>${esc(r.corp_name)}</b> <span class="cns-code">${esc(r.stock_code)}</span></span>
+          <span class="cns-c-num">${wonFmt(r.current_price)}</span>
           <span class="cns-c-num cns-tp">${wonFmt(r.target_price)}</span>
+          <span class="cns-c-num cns-up ${upCls}">${upTxt}</span>
           <span class="cns-c-num"><span class="cns-op op-${opinionTxt(r.opinion)}">${r.opinion != null ? r.opinion.toFixed(2) : "-"}</span> <span class="cns-op-t">${opinionTxt(r.opinion)}</span></span>
           <span class="cns-c-num">${r.est_cnt ?? "-"}곳${r.est_cnt_90d ? `<span class="cns-90d"> (90일 ${r.est_cnt_90d})</span>` : ""}</span>
           <span class="cns-c-date">${r.base_date ? fmtDate(r.base_date) : "-"}</span>`;

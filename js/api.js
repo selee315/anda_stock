@@ -154,14 +154,14 @@ window.API = (() => {
     const sb = window.SB.client();
     if (!sb) throw new Error("Supabase 미연결");
     let query = sb.from("consensus")
-      .select("stock_code,corp_name,target_price,opinion,est_cnt,est_cnt_90d,base_date");
+      .select("stock_code,corp_name,target_price,current_price,upside,opinion,est_cnt,est_cnt_90d,base_date");
     if (q && q.trim()) {
       const t = q.trim().replace(/[%,]/g, " ");
       query = query.or(`corp_name.ilike.%${t}%,stock_code.ilike.%${t}%`);
     }
-    const asc = false;
+    const col = { target_price: "target_price", upside: "upside" }[sort] || "est_cnt";
     query = query
-      .order(sort === "target_price" ? "target_price" : "est_cnt", { ascending: asc, nullsFirst: false })
+      .order(col, { ascending: false, nullsFirst: false })
       .order("est_cnt", { ascending: false })
       .range(page * PAGE, page * PAGE + PAGE - 1);
     const { data, error } = await query;

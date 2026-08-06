@@ -22,6 +22,7 @@ const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: fal
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
 const num = (s) => { if (s == null) return null; s = String(s).replace(/,/g, "").trim(); if (s === "" || s === "-") return null; const n = Number(s); return Number.isNaN(n) ? null : n; };
+const decodeEnt = (s) => (s || "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // 증권사 목표주가 테이블 행: 증권사 | 일자 | 목표가 | 직전 | 변동 | 투자의견
@@ -38,7 +39,7 @@ async function scrape(code) {
   // 요청 종목과 응답 종목 일치 확인 (미존재 코드는 기본페이지로 떨어짐)
   const tm = html.match(/<title>([^<(]+)\((\d{6})\)/);
   if (!tm || tm[2] !== code) return null;
-  const corp_name = tm[1].trim();
+  const corp_name = decodeEnt(tm[1].trim());
 
   const cutoff90 = new Date(Date.now() - 90 * 86400000);
   let sum = 0, cnt = 0, cnt90 = 0, opSum = 0, opCnt = 0, maxDate = "";
@@ -62,8 +63,30 @@ async function scrape(code) {
     opinion: opCnt ? Math.round((opSum / opCnt) * 100) / 100 : null,
     est_cnt: cnt, est_cnt_90d: cnt90,
     base_date: maxDate || null,
+    current_price: null, upside: null,                   // 아래서 Naver로 채움
     updated_at: new Date().toISOString(),
   };
+}
+
+// Naver 시총순 전종목 리스트 — 유니버스 + 현재가(closePrice) 동시 확보.
+async function marketList(mkt, pages) {
+  const out = [];   // {code, name, price}
+  for (let p = 1; p <= pages; p++) {
+    let j;
+    try {
+      const r = await fetch(`https://m.stock.naver.com/api/stocks/marketValue/${mkt}?page=${p}&pageSize=100`, { headers: { "User-Agent": UA } });
+      if (!r.ok) break;
+      j = await r.json();
+    } catch { break; }
+    const list = j.stocks || [];
+    for (const s of list) {
+      const code = s.itemCode;
+      if (/^\d{6}$/.test(code || "")) out.push({ code, name: s.stockName, price: num(s.closePrice) });
+    }
+    if (list.length < 100) break;   // 마지막 페이지
+    await sleep(80);
+  }
+  return out;
 }
 
 // 핵심 대형주 — 공시 유니버스에 없어도 항상 포함(코스피·코스닥 대표주)
@@ -76,31 +99,33 @@ const CORE = [
   "259960", "377300", "036570", "251270", "263750", "293490", "112040", "095340",
 ];
 
+const KOSPI_PAGES  = parseInt(process.env.CNS_KOSPI_PAGES  || "12", 10);   // 시총순 상위 N×100
+const KOSDAQ_PAGES = parseInt(process.env.CNS_KOSDAQ_PAGES || "8",  10);
+
 (async () => {
-  // 유니버스: disclosures의 distinct 종목코드 + 핵심 대형주
-  const codes = new Set(CORE);
-  let from = 0;
-  for (;;) {
-    const { data, error } = await sb.from("disclosures").select("stock_code").not("stock_code", "is", null).range(from, from + 999);
-    if (error) { console.error("유니버스 조회 실패:", error.message); process.exit(1); }
-    if (!data.length) break;
-    for (const r of data) if (/^\d{6}$/.test(r.stock_code || "")) codes.add(r.stock_code);
-    if (data.length < 1000) break;
-    from += 1000;
-  }
+  // 유니버스: Naver 시총순 전종목(코스피+코스닥) — 현재가 포함
+  const listed = [...await marketList("KOSPI", KOSPI_PAGES), ...await marketList("KOSDAQ", KOSDAQ_PAGES)];
+  const priceMap = new Map();                       // code → 현재가
+  const codes = new Set(CORE);                       // 핵심주는 항상 포함
+  for (const s of listed) { codes.add(s.code); if (s.price != null) priceMap.set(s.code, s.price); }
   let universe = [...codes];
   if (LIMIT > 0) universe = universe.slice(0, LIMIT);
-  console.log(`🔮 컨센서스 수집 — 종목 ${universe.length}개 (동시성 ${CONC})`);
+  console.log(`🔮 컨센서스 수집 — 유니버스 ${universe.length}개 (코스피↑${KOSPI_PAGES}p·코스닥↑${KOSDAQ_PAGES}p, 동시성 ${CONC})`);
 
   const rows = [];
   let done = 0, covered = 0;
   for (let i = 0; i < universe.length; i += CONC) {
     const batch = universe.slice(i, i + CONC);
     const res = await Promise.all(batch.map(scrape));
-    for (const r of res) if (r) { rows.push(r); covered++; }
+    for (const r of res) if (r) {
+      const cp = priceMap.get(r.stock_code) ?? null;
+      r.current_price = cp;
+      r.upside = (cp && r.target_price) ? Math.round((r.target_price / cp - 1) * 1000) / 10 : null;
+      rows.push(r); covered++;
+    }
     done += batch.length;
-    if (done % 50 === 0 || done >= universe.length) console.log(`   ${done}/${universe.length} (커버 ${covered})`);
-    await sleep(120);
+    if (done % 100 === 0 || done >= universe.length) console.log(`   ${done}/${universe.length} (커버 ${covered})`);
+    await sleep(100);
   }
 
   // upsert
