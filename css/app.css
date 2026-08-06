@@ -186,3 +186,16 @@ button { font-family: inherit; cursor: pointer; }
 .mkt-card.up .mkt-chg { color: var(--up); }
 .mkt-card.dn .mkt-chg { color: var(--down); }
 .mkt-updated { color: var(--faint); font-size: 11.5px; text-align: right; margin-top: 8px; }
+
+/* ── 국내 공시 (DART) ── */
+.dsc-item { display: flex; justify-content: space-between; gap: 14px; text-decoration: none; color: inherit; align-items: flex-start; }
+.dsc-item:hover { background: var(--soft); }
+.dsc-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 4px; }
+.dsc-corp { font-weight: 800; font-size: 13.5px; color: var(--ink); }
+.dsc-mkt { font-size: 10.5px; font-weight: 700; border-radius: 4px; padding: 1px 6px; }
+.dsc-mkt.kospi { color: #1f6fd0; background: rgba(31,111,208,.1); }
+.dsc-mkt.kosdaq { color: #c8641a; background: rgba(200,100,26,.1); }
+.dsc-ty { font-size: 10.5px; font-weight: 700; color: var(--accent-d); background: var(--soft); border-radius: 4px; padding: 1px 6px; }
+.dsc-rm { font-size: 11px; color: var(--down); font-weight: 700; }
+.dsc-flr { font-size: 11px; color: var(--faint); }
+.rb-item-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }

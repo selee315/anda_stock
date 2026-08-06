@@ -54,6 +54,7 @@
   // 섹션 정의 (홈 카드) — 확장 가능
   const SECTIONS = [
     { id: "research", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot·자료실 전체 검색·열람", ready: true, big: true },
+    { id: "disclosure", icon: "📑", name: "국내 공시", desc: "코스피·코스닥 DART 공시 실시간 피드", ready: true },
     { id: "market", icon: "📈", name: "시장 데이터", desc: "세계지수·환율·원자재 실시간(지연) 시세", ready: true },
     { id: "ai", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
   ];
@@ -96,6 +97,7 @@
           <nav class="nav-links">
             <button class="nav-link" data-v="home">홈</button>
             <button class="nav-link" data-v="research">사내 리서치 자료</button>
+            <button class="nav-link" data-v="disclosure">국내 공시</button>
             <button class="nav-link" data-v="market">시장 데이터</button>
             <button class="nav-link" data-v="ai">AI 리서치</button>
           </nav>
@@ -122,9 +124,70 @@
     document.querySelectorAll(".nav-link").forEach((b) => b.classList.toggle("active", b.dataset.v === state.view));
     const v = $("#view"); v.className = "";
     if (state.view === "research") return renderResearch(v);
+    if (state.view === "disclosure") return renderDisclosure(v);
     if (state.view === "market") return renderMarket(v);
     if (state.view === "ai") return renderAI(v);
     return renderHome(v);
+  }
+
+  // ── 국내 공시 (DART) ──
+  const dstate = { market: null, ty: null, q: "", page: 0, hasMore: true, loading: false };
+  function renderDisclosure(v) {
+    v.innerHTML = `
+      <div id="rb">
+        <div class="rb-head">
+          <div class="rb-title">📑 국내 공시</div>
+          <div class="rb-search"><input id="dq" placeholder="회사명·공시명 검색…" value="${esc(dstate.q)}" /></div>
+        </div>
+        <div class="rb-tabs" id="dmkt"></div>
+        <div class="rb-tabs" id="dty"></div>
+        <main class="rb-list" id="dlist"></main>
+      </div>`;
+    const qEl = $("#dq"); let t;
+    qEl.oninput = () => { clearTimeout(t); t = setTimeout(() => { dstate.q = qEl.value; dReload(); }, 300); };
+    // 시장 필터
+    const mkts = [[null, "전체"], ["KOSPI", "코스피"], ["KOSDAQ", "코스닥"]];
+    $("#dmkt").innerHTML = mkts.map(([k, l]) => `<button class="rb-tab${dstate.market === k ? " active" : ""}" data-m="${k || ""}">${l}</button>`).join("");
+    $("#dmkt").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { dstate.market = b.dataset.m || null; renderDisclosure(v); });
+    // 유형 필터
+    const tyBtn = (k, l) => `<button class="rb-tab${dstate.ty === k ? " active" : ""}" data-t="${k == null ? "" : k}">${l}</button>`;
+    $("#dty").innerHTML = tyBtn(null, "전체유형") + Object.entries(window.DART_TYPES).map(([c, l]) => tyBtn(c, l)).join("");
+    $("#dty").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { dstate.ty = b.dataset.t || null; renderDisclosure(v); });
+    dReload();
+    $("#dlist").onscroll = () => { const m = $("#dlist"); if (!dstate.loading && dstate.hasMore && m.scrollTop + m.clientHeight > m.scrollHeight - 300) dLoadMore(); };
+  }
+  function dReload() { const l = $("#dlist"); if (l) l.innerHTML = ""; dstate.page = 0; dstate.hasMore = true; dLoadMore(); }
+  async function dLoadMore() {
+    if (dstate.loading || !dstate.hasMore) return;
+    dstate.loading = true;
+    const list = $("#dlist"); if (!list) { dstate.loading = false; return; }
+    const spin = el("div", "rb-spin", "불러오는 중…"); list.appendChild(spin);
+    try {
+      const { rows, hasMore } = await window.API.disclosures({ market: dstate.market, ty: dstate.ty, q: dstate.q, page: dstate.page });
+      spin.remove();
+      if (dstate.page === 0 && rows.length === 0) { list.innerHTML = `<div class="rb-empty">🗂️<div>표시할 공시가 없습니다.<br>서버 수집(fetcher)이 아직 실행되지 않았을 수 있어요.</div></div>`; dstate.hasMore = false; dstate.loading = false; return; }
+      for (const r of rows) {
+        const item = el("a", "rb-item dsc-item");
+        item.href = r.url; item.target = "_blank"; item.rel = "noopener";
+        item.innerHTML = `
+          <div class="rb-item-main">
+            <div class="dsc-top">
+              <span class="dsc-corp">${esc(r.corp_name)}</span>
+              ${r.market ? `<span class="dsc-mkt ${r.market === "KOSPI" ? "kospi" : "kosdaq"}">${r.market === "KOSPI" ? "코스피" : r.market === "KOSDAQ" ? "코스닥" : esc(r.market)}</span>` : ""}
+              ${r.pblntf_ty_label ? `<span class="dsc-ty">${esc(r.pblntf_ty_label)}</span>` : ""}
+            </div>
+            <div class="rb-item-title">${esc(r.report_nm)}${r.rm ? ` <span class="dsc-rm">${esc(r.rm)}</span>` : ""}</div>
+          </div>
+          <div class="rb-item-meta">${r.rcept_dt ? `<span class="rb-date">${fmtDate(r.rcept_dt)}</span>` : ""}${r.flr_nm ? `<span class="dsc-flr">${esc(r.flr_nm)}</span>` : ""}</div>`;
+        list.appendChild(item);
+      }
+      dstate.page++; dstate.hasMore = hasMore;
+    } catch (e) {
+      spin.remove();
+      list.insertAdjacentHTML("beforeend", `<div class="rb-empty">⚠️<div>${esc(e.message)}</div></div>`);
+      dstate.hasMore = false;
+    }
+    dstate.loading = false;
   }
 
   // ── 시장 데이터 (EODHD 스냅샷) ──

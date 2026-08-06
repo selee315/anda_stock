@@ -15,3 +15,9 @@ window.SOURCE_ICON = {
   "Spot Comment": "🗒️",
   "자료실": "📂",
 };
+
+// DART 공시유형(pblntf_ty) — 필터 탭용. 리서치에서 자주 보는 순서.
+window.DART_TYPES = {
+  B: "주요사항", A: "정기공시", D: "지분공시", C: "발행공시",
+  I: "거래소", E: "기타", F: "외부감사", J: "공정위",
+};

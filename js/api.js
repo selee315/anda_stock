@@ -116,6 +116,39 @@ window.API = (() => {
     return data;
   }
 
+  // 국내 공시 (DART) — { market, ty, q, page } → { rows, hasMore }
+  async function disclosures({ market = null, ty = null, q = "", page = 0 } = {}) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    let query = sb.from("disclosures")
+      .select("rcept_no,corp_name,stock_code,market,report_nm,pblntf_ty,pblntf_ty_label,flr_nm,rcept_dt,rm,url");
+    if (market) query = query.eq("market", market);
+    if (ty) query = query.eq("pblntf_ty", ty);
+    if (q && q.trim()) {
+      const t = q.trim().replace(/[%,]/g, " ");
+      query = query.or(`corp_name.ilike.%${t}%,report_nm.ilike.%${t}%`);
+    }
+    query = query
+      .order("rcept_dt", { ascending: false, nullsFirst: false })
+      .order("rcept_no", { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { rows: data || [], hasMore: (data || []).length === PAGE };
+  }
+  // 공시 유형별 개수 (필터 뱃지용)
+  async function disclosureCounts() {
+    const sb = window.SB.client();
+    if (!sb) return { total: 0, byTy: {} };
+    const { count: total } = await sb.from("disclosures").select("*", { count: "exact", head: true });
+    const byTy = {};
+    for (const [code] of Object.entries(window.DART_TYPES || {})) {
+      const { count } = await sb.from("disclosures").select("*", { count: "exact", head: true }).eq("pblntf_ty", code);
+      byTy[code] = count || 0;
+    }
+    return { total: total || 0, byTy };
+  }
+
   // 시장 데이터 (EODHD 스냅샷)
   async function marketQuotes() {
     const sb = window.SB.client();
@@ -127,5 +160,5 @@ window.API = (() => {
     return data || [];
   }
 
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, PAGE };
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, PAGE };
 })();
