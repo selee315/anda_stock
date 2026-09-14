@@ -296,6 +296,7 @@
     $("#mvtabs").querySelectorAll("[data-d]").forEach((b) => b.onclick = () => { mvstate.dir = b.dataset.d; renderMovers(v); });
     $("#mvtabs").querySelectorAll("[data-mk]").forEach((b) => b.onclick = () => { mvstate.mkt = b.dataset.mk; renderMovers(v); });
     const rows = (snap.data[mvstate.dir] || {})[mvstate.mkt] || [];
+    if (!rows.length) { $("#mvbody").innerHTML = `<div class="rb-empty">🕘<div>표시할 종목이 없습니다.<br>장 시작 전이거나 아직 수집 전일 수 있어요 (장중 시간대 자동 갱신).</div></div>`; return; }
     $("#mvbody").innerHTML = rows.map((r, i) => {
       const up = (r.change_p ?? 0) > 0;
       return `<a class="cns-row mv-row" href="https://finance.naver.com/item/main.naver?code=${r.code}" target="_blank" rel="noopener">

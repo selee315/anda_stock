@@ -2,7 +2,7 @@ name: 급등락(Naver) 수집
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 1-7 * * 1-5"
+    - cron: "0 0-7 * * 1-5"
 jobs:
   fetch:
     runs-on: ubuntu-latest
