@@ -273,13 +273,14 @@ window.API = (() => {
   async function stockDetail(code, name) {
     const sb = window.SB.client();
     if (!sb) throw new Error("Supabase 미연결");
-    const [cons, reps, discs] = await Promise.all([
+    const [cons, reps, discs, kis] = await Promise.all([
       sb.from("consensus").select("*").eq("stock_code", code).maybeSingle(),
       sb.from("reports").select("rpt_id,report_date,house,analyst,opinion,target_price,tp_dir,title,url,summary")
         .or(`stock_code.eq.${code}${name ? `,stock_name.eq.${name}` : ""}`).order("report_date", { ascending: false }).order("rpt_id", { ascending: false }).limit(20),
       sb.from("disclosures").select("rcept_no,report_nm,pblntf_ty_label,rcept_dt,url,rm").eq("stock_code", code).order("rcept_dt", { ascending: false }).limit(20),
+      sb.from("stock_quotes").select("*").eq("stock_code", code).maybeSingle(),
     ]);
-    return { consensus: cons.data || null, reports: reps.data || [], disclosures: discs.data || [] };
+    return { consensus: cons.data || null, reports: reps.data || [], disclosures: discs.data || [], kis: kis.data || null };
   }
 
   return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, stockSearch, stockDetail, PAGE };

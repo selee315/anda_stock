@@ -17,3 +17,6 @@ briefs/
 
 # 시스템
 .DS_Store
+scripts/.kis_token.json
+scripts/kis.log
+scripts/kis.err.log

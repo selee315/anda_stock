@@ -322,3 +322,6 @@ button { font-family: inherit; cursor: pointer; }
 .sk-sec { font-size: 13.5px; font-weight: 800; padding: 16px 4px 6px; }
 .co-back { background: var(--card2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; color: var(--dim); margin-bottom: 12px; }
 .co-back:hover { background: var(--soft); }
+.sk-chg { font-size: 13px; }
+.sk-52 { font-size: 14px; }
+.sk-m-v { line-height: 1.25; }

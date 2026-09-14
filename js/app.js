@@ -360,19 +360,32 @@
     const box = $("#skbody"); if (!box) return;
     box.innerHTML = `<div class="rb-spin">불러오는 중…</div>`;
     let d; try { d = await window.API.stockDetail(sel.code, sel.name); } catch (e) { box.innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
-    const c = d.consensus;
+    const c = d.consensus, k = d.kis;
     const won = (n) => n == null ? "-" : Number(n).toLocaleString("ko-KR");
     const up = c && (c.upside ?? 0) > 0;
+    const price = (k && k.price != null) ? k.price : (c ? c.current_price : null);
+    const cp = k ? k.change_p : null;
+    const M = [];
+    M.push({ l: "현재가", v: `${won(price)}${cp != null ? ` <span class="sk-chg ${cp > 0 ? "u-up" : cp < 0 ? "u-dn" : ""}">${cp > 0 ? "+" : ""}${cp}%</span>` : ""}` });
+    if (k && k.sector) M.push({ l: "업종", v: esc(k.sector) });
+    if (c) {
+      M.push({ l: "컨센서스 목표주가", v: won(c.target_price) });
+      M.push({ l: "상승여력", v: c.upside != null ? `<span class="${up ? "u-up" : "u-dn"}">${up ? "+" : ""}${c.upside}%</span>` : "-" });
+      M.push({ l: "투자의견", v: c.opinion != null ? c.opinion.toFixed(2) : "-" });
+      M.push({ l: "커버 증권사", v: (c.est_cnt || 0) + "곳" });
+    }
+    if (k) {
+      if (k.per != null) M.push({ l: "PER", v: k.per });
+      if (k.pbr != null) M.push({ l: "PBR", v: k.pbr });
+      if (k.market_cap) M.push({ l: "시가총액", v: (k.market_cap / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + "조" });
+      if (k.high_52w) M.push({ l: "52주 최저~최고", v: `<span class="sk-52">${won(k.low_52w)}~${won(k.high_52w)}</span>` });
+      if (k.foreign_ratio != null) M.push({ l: "외국인 비중", v: k.foreign_ratio + "%" });
+    }
     const head = `<button class="co-back" id="skBack">← 검색 결과</button>
       <div class="sk-head">
         <div class="sk-title">${esc(sel.name)} <span class="cns-code">${esc(sel.code)}</span></div>
-        ${c ? `<div class="sk-metrics">
-          <div class="sk-m"><span class="sk-m-l">현재가</span><span class="sk-m-v">${won(c.current_price)}</span></div>
-          <div class="sk-m"><span class="sk-m-l">컨센서스 목표주가</span><span class="sk-m-v">${won(c.target_price)}</span></div>
-          <div class="sk-m"><span class="sk-m-l">상승여력</span><span class="sk-m-v ${up ? "u-up" : "u-dn"}">${c.upside != null ? (up ? "+" : "") + c.upside + "%" : "-"}</span></div>
-          <div class="sk-m"><span class="sk-m-l">투자의견</span><span class="sk-m-v">${c.opinion != null ? c.opinion.toFixed(2) : "-"}</span></div>
-          <div class="sk-m"><span class="sk-m-l">커버 증권사</span><span class="sk-m-v">${c.est_cnt || 0}곳</span></div>
-        </div>` : `<div class="rp-meta">컨센서스 데이터 없음 (커버 증권사 없음)</div>`}
+        <div class="sk-metrics">${M.map((m) => `<div class="sk-m"><span class="sk-m-l">${m.l}</span><span class="sk-m-v">${m.v}</span></div>`).join("")}</div>
+        ${!c && !k ? `<div class="rp-meta">현재가·컨센서스 데이터 없음</div>` : ""}
       </div>`;
     const reps = d.reports.length ? `<div class="sk-sec">📄 증권사 리포트 <span class="rb-count">${d.reports.length}</span></div>
       ${d.reports.map((r) => { const mk = { "상향": " ▲", "하향": " ▼" }[r.tp_dir] || ""; return `<a class="rb-item rp-item" href="${esc(r.url)}" target="_blank" rel="noopener">
