@@ -260,5 +260,27 @@ window.API = (() => {
   const movers = () => snapshot("movers_snapshot");
   const sector = () => snapshot("sector_returns");
 
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, PAGE };
+  // 종목 통합 — 검색(컨센서스 대상 종목) + 상세(컨센서스·리포트·공시 종합)
+  async function stockSearch(q) {
+    const sb = window.SB.client();
+    if (!sb || !q || !q.trim()) return [];
+    const t = q.trim().replace(/[%,]/g, " ");
+    const { data } = await sb.from("consensus")
+      .select("stock_code,corp_name,current_price,target_price,upside,opinion,est_cnt")
+      .or(`corp_name.ilike.%${t}%,stock_code.ilike.%${t}%`).order("est_cnt", { ascending: false }).limit(20);
+    return data || [];
+  }
+  async function stockDetail(code, name) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const [cons, reps, discs] = await Promise.all([
+      sb.from("consensus").select("*").eq("stock_code", code).maybeSingle(),
+      sb.from("reports").select("rpt_id,report_date,house,analyst,opinion,target_price,tp_dir,title,url,summary")
+        .or(`stock_code.eq.${code}${name ? `,stock_name.eq.${name}` : ""}`).order("report_date", { ascending: false }).order("rpt_id", { ascending: false }).limit(20),
+      sb.from("disclosures").select("rcept_no,report_nm,pblntf_ty_label,rcept_dt,url,rm").eq("stock_code", code).order("rcept_dt", { ascending: false }).limit(20),
+    ]);
+    return { consensus: cons.data || null, reports: reps.data || [], disclosures: discs.data || [] };
+  }
+
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, stockSearch, stockDetail, PAGE };
 })();

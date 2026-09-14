@@ -309,3 +309,16 @@ button { font-family: inherit; cursor: pointer; }
 .sc-bar.up { background: var(--up); } .sc-bar.dn { background: var(--down); }
 .sc-val { flex: 0 0 70px; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13px; }
 .sc-val.up { color: var(--up); } .sc-val.dn { color: var(--down); }
+
+/* ── 종목 통합 뷰 ── */
+.u-up { color: var(--up); } .u-dn { color: var(--down); }
+.sk-result { cursor: pointer; }
+.sk-head { padding: 8px 6px 16px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.sk-title { font-size: 20px; font-weight: 800; margin-bottom: 12px; }
+.sk-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.sk-m { background: var(--card2); border-radius: 10px; padding: 10px 12px; }
+.sk-m-l { display: block; font-size: 11.5px; color: var(--dim); }
+.sk-m-v { display: block; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.sk-sec { font-size: 13.5px; font-weight: 800; padding: 16px 4px 6px; }
+.co-back { background: var(--card2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; color: var(--dim); margin-bottom: 12px; }
+.co-back:hover { background: var(--soft); }

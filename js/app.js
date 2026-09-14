@@ -56,6 +56,7 @@
     { id: "research", cat: "리서치", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot·자료실 전체 검색·열람", ready: true, big: true },
     { id: "reports", cat: "리서치", icon: "📄", name: "리서치 리포트", desc: "증권사 리포트·목표주가 변동 (FnGuide)", ready: true },
     { id: "ai", cat: "리서치", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
+    { id: "stock", cat: "종목·컨센서스", icon: "🔎", name: "종목 검색", desc: "종목 하나로 현재가·컨센서스·리포트·공시 통합 조회", ready: true },
     { id: "consensus", cat: "종목·컨센서스", icon: "🔮", name: "컨센서스", desc: "증권사 목표주가·투자의견 집계 (FnGuide)", ready: true },
     { id: "disclosure", cat: "종목·컨센서스", icon: "📑", name: "국내 공시", desc: "코스피·코스닥 DART 공시 실시간 피드", ready: true },
     { id: "dividend", cat: "종목·컨센서스", icon: "💰", name: "배당주", desc: "고배당 ETF·배당 체크리스트 통과 종목 (Naver)", ready: true },
@@ -108,6 +109,7 @@
             <button class="nav-link" data-v="research">사내 리서치 자료</button>
             <button class="nav-link" data-v="reports">리서치 리포트</button>
             <button class="nav-link" data-v="ai">AI 리서치</button>
+            <button class="nav-link" data-v="stock">종목 검색</button>
             <button class="nav-link" data-v="consensus">컨센서스</button>
             <button class="nav-link" data-v="disclosure">국내 공시</button>
             <button class="nav-link" data-v="dividend">배당주</button>
@@ -143,6 +145,7 @@
     if (state.view === "research") return renderResearch(v);
     if (state.view === "disclosure") return renderDisclosure(v);
     if (state.view === "consensus") return renderConsensus(v);
+    if (state.view === "stock") return renderStock(v);
     if (state.view === "reports") return renderReports(v);
     if (state.view === "market") return renderMarket(v);
     if (state.view === "movers") return renderMovers(v);
@@ -327,6 +330,61 @@
         <div class="sc-bar-wrap"><div class="sc-bar ${up ? "up" : "dn"}" style="width:${w}%;${up ? "margin-left:50%" : "margin-left:" + (50 - w) + "%"}"></div></div>
         <span class="sc-val ${up ? "up" : "dn"}">${up ? "+" : ""}${val != null ? val.toFixed(2) : "-"}%</span></div>`;
     }).join("") + `<div class="mkt-updated">기준일: ${snap.basis ? fmtDate(snap.basis) : "-"}</div>`;
+  }
+
+  // ── 종목 통합 뷰 ──
+  const skstate = { q: "", sel: null };
+  function renderStock(v) {
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">🔎 종목 검색</div>
+      <div class="rb-search"><input id="skq" placeholder="종목명·종목코드…" value="${esc(skstate.q)}" autocomplete="off" /></div></div>
+      <main class="rb-list" id="skbody"></main></div>`;
+    const qEl = $("#skq"); let t;
+    qEl.oninput = () => { clearTimeout(t); t = setTimeout(() => { skstate.q = qEl.value; skstate.sel = null; skSearch(); }, 250); };
+    qEl.focus();
+    if (skstate.sel) skDetail(skstate.sel); else if (skstate.q) skSearch(); else $("#skbody").innerHTML = `<div class="rb-empty">🔎<div>종목명이나 코드를 입력하세요.<br>현재가·컨센서스 목표주가·증권사 리포트·DART 공시를 한 곳에서 봅니다.</div></div>`;
+  }
+  async function skSearch() {
+    const box = $("#skbody"); if (!box) return;
+    box.innerHTML = `<div class="rb-spin">검색 중…</div>`;
+    let rows; try { rows = await window.API.stockSearch(skstate.q); } catch (e) { box.innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
+    if (!rows.length) { box.innerHTML = `<div class="rb-empty">🔎<div>"${esc(skstate.q)}" 검색 결과가 없습니다.<br>(컨센서스 대상 종목만 검색됩니다)</div></div>`; return; }
+    box.innerHTML = rows.map((r) => {
+      const up = (r.upside ?? 0) > 0;
+      return `<button class="rb-item sk-result" data-code="${esc(r.stock_code)}" data-name="${esc(r.corp_name)}">
+        <div class="rb-item-main"><div class="rb-item-title">${esc(r.corp_name)} <span class="cns-code">${esc(r.stock_code)}</span></div>
+          <div class="rp-meta">현재가 ${r.current_price ? Number(r.current_price).toLocaleString("ko-KR") : "-"} · 목표 ${r.target_price ? Number(r.target_price).toLocaleString("ko-KR") : "-"}${r.upside != null ? ` · 상승여력 <span class="${up ? "u-up" : "u-dn"}">${up ? "+" : ""}${r.upside}%</span>` : ""} · ${r.est_cnt || 0}곳</div></div></button>`;
+    }).join("");
+    box.querySelectorAll(".sk-result").forEach((b) => b.onclick = () => { skstate.sel = { code: b.dataset.code, name: b.dataset.name }; skDetail(skstate.sel); });
+  }
+  async function skDetail(sel) {
+    const box = $("#skbody"); if (!box) return;
+    box.innerHTML = `<div class="rb-spin">불러오는 중…</div>`;
+    let d; try { d = await window.API.stockDetail(sel.code, sel.name); } catch (e) { box.innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
+    const c = d.consensus;
+    const won = (n) => n == null ? "-" : Number(n).toLocaleString("ko-KR");
+    const up = c && (c.upside ?? 0) > 0;
+    const head = `<button class="co-back" id="skBack">← 검색 결과</button>
+      <div class="sk-head">
+        <div class="sk-title">${esc(sel.name)} <span class="cns-code">${esc(sel.code)}</span></div>
+        ${c ? `<div class="sk-metrics">
+          <div class="sk-m"><span class="sk-m-l">현재가</span><span class="sk-m-v">${won(c.current_price)}</span></div>
+          <div class="sk-m"><span class="sk-m-l">컨센서스 목표주가</span><span class="sk-m-v">${won(c.target_price)}</span></div>
+          <div class="sk-m"><span class="sk-m-l">상승여력</span><span class="sk-m-v ${up ? "u-up" : "u-dn"}">${c.upside != null ? (up ? "+" : "") + c.upside + "%" : "-"}</span></div>
+          <div class="sk-m"><span class="sk-m-l">투자의견</span><span class="sk-m-v">${c.opinion != null ? c.opinion.toFixed(2) : "-"}</span></div>
+          <div class="sk-m"><span class="sk-m-l">커버 증권사</span><span class="sk-m-v">${c.est_cnt || 0}곳</span></div>
+        </div>` : `<div class="rp-meta">컨센서스 데이터 없음 (커버 증권사 없음)</div>`}
+      </div>`;
+    const reps = d.reports.length ? `<div class="sk-sec">📄 증권사 리포트 <span class="rb-count">${d.reports.length}</span></div>
+      ${d.reports.map((r) => { const mk = { "상향": " ▲", "하향": " ▼" }[r.tp_dir] || ""; return `<a class="rb-item rp-item" href="${esc(r.url)}" target="_blank" rel="noopener">
+        <div class="rb-item-main"><div class="rb-item-title">${esc(r.title || "")}${mk ? `<span class="rp-mark ${r.tp_dir === "상향" ? "up" : "dn"}">${mk.trim()} ${r.tp_dir}</span>` : ""}</div>
+        <div class="rp-meta">${[r.house, r.analyst, r.opinion, r.target_price ? "TP " + won(r.target_price) : "", r.report_date].filter(Boolean).join(" · ")}</div></div></a>`; }).join("")}` : "";
+    const discs = d.disclosures.length ? `<div class="sk-sec">📑 DART 공시 <span class="rb-count">${d.disclosures.length}</span></div>
+      ${d.disclosures.map((r) => `<a class="rb-item dsc-item" href="${esc(r.url)}" target="_blank" rel="noopener">
+        <div class="rb-item-main"><div class="dsc-top">${r.pblntf_ty_label ? `<span class="dsc-ty">${esc(r.pblntf_ty_label)}</span>` : ""}</div>
+        <div class="rb-item-title">${esc(r.report_nm)}${r.rm ? ` <span class="dsc-rm">${esc(r.rm)}</span>` : ""}</div></div>
+        <div class="rb-item-meta"><span class="rb-date">${r.rcept_dt ? fmtDate(r.rcept_dt) : ""}</span></div></a>`).join("")}` : "";
+    box.innerHTML = head + (reps || discs ? reps + discs : `<div class="rb-empty" style="padding:30px">📭<div>이 종목의 리포트·공시가 아직 없습니다.</div></div>`);
+    $("#skBack").onclick = () => { skstate.sel = null; skSearch(); };
   }
 
   // ── 증권사 리포트 (FnGuide) ──
