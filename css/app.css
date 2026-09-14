@@ -297,3 +297,15 @@ button { font-family: inherit; cursor: pointer; }
 .dv-etf-ret .up { color: var(--up); } .dv-etf-ret .dn { color: var(--down); }
 .dv-etf-cons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .dv-chip { font-size: 11px; background: var(--card2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; color: var(--dim); }
+
+/* ── 급등락 ── */
+.mv-row { text-decoration: none; color: inherit; align-items: center; }
+.mv-row .flow-rank { flex: 0 0 24px; }
+/* ── 섹터 수익률 (다이버징 바) ── */
+.sc-row { display: flex; align-items: center; gap: 12px; padding: 11px 6px; border-bottom: 1px solid var(--line2); }
+.sc-name { flex: 0 0 90px; font-weight: 700; font-size: 13.5px; }
+.sc-bar-wrap { flex: 1; height: 18px; background: linear-gradient(90deg, transparent 49.7%, var(--line) 49.7%, var(--line) 50.3%, transparent 50.3%); border-radius: 3px; position: relative; }
+.sc-bar { height: 100%; border-radius: 3px; }
+.sc-bar.up { background: var(--up); } .sc-bar.dn { background: var(--down); }
+.sc-val { flex: 0 0 70px; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13px; }
+.sc-val.up { color: var(--up); } .sc-val.dn { color: var(--down); }

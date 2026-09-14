@@ -249,5 +249,16 @@ window.API = (() => {
     return { rows: data || [], hasMore: (data || []).length === PAGE };
   }
 
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, PAGE };
+  // 급등락 / 섹터 수익률 (스냅샷 최신 1건)
+  async function snapshot(table) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const { data, error } = await sb.from(table).select("*").order("id", { ascending: false }).limit(1).single();
+    if (error) { if (error.code === "PGRST116") return null; throw new Error(error.message); }
+    return data;
+  }
+  const movers = () => snapshot("movers_snapshot");
+  const sector = () => snapshot("sector_returns");
+
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, PAGE };
 })();

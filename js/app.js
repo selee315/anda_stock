@@ -61,6 +61,8 @@
     { id: "dividend", cat: "종목·컨센서스", icon: "💰", name: "배당주", desc: "고배당 ETF·배당 체크리스트 통과 종목 (Naver)", ready: true },
     { id: "flows", cat: "종목·컨센서스", icon: "💧", name: "수급", desc: "외국인·기관 투자자별 순매수 상위 (Naver)", ready: true },
     { id: "market", cat: "시장·매크로", icon: "📈", name: "시장 데이터", desc: "세계지수·환율·원자재 실시간(지연) 시세", ready: true },
+    { id: "movers", cat: "시장·매크로", icon: "🚀", name: "급등락", desc: "코스피·코스닥 상승률·하락률 상위 (Naver)", ready: true },
+    { id: "sector", cat: "시장·매크로", icon: "💹", name: "섹터 수익률", desc: "KODEX 섹터 ETF 기준 섹터별 등락 (Naver)", ready: true },
     { id: "macro", cat: "시장·매크로", icon: "📐", name: "MACRO", desc: "미국 매크로 지표 — M2·CPI·금리·유동성 (FRED)", ready: true },
     { id: "news", cat: "뉴스", icon: "📰", name: "뉴스", desc: "시장 뉴스 헤드라인 (RSS·Naver)", ready: true },
   ];
@@ -111,6 +113,8 @@
             <button class="nav-link" data-v="dividend">배당주</button>
             <button class="nav-link" data-v="flows">수급</button>
             <button class="nav-link" data-v="market">시장 데이터</button>
+            <button class="nav-link" data-v="movers">급등락</button>
+            <button class="nav-link" data-v="sector">섹터</button>
             <button class="nav-link" data-v="macro">MACRO</button>
             <button class="nav-link" data-v="news">뉴스</button>
           </nav>
@@ -141,6 +145,8 @@
     if (state.view === "consensus") return renderConsensus(v);
     if (state.view === "reports") return renderReports(v);
     if (state.view === "market") return renderMarket(v);
+    if (state.view === "movers") return renderMovers(v);
+    if (state.view === "sector") return renderSector(v);
     if (state.view === "macro") return renderMacro(v);
     if (state.view === "dividend") return renderDividend(v);
     if (state.view === "flows") return renderFlows(v);
@@ -275,6 +281,51 @@
         <span class="dv-etf-ret"><span class="${cls(e.d1)}">1D ${pct(e.d1)}</span> · <span class="${cls(e.m1)}">1M ${pct(e.m1)}</span> · <span class="${cls(e.m3)}">3M ${pct(e.m3)}</span></span></div>
         <div class="dv-etf-cons">${(e.constituents || []).slice(0, 8).map((c) => `<span class="dv-chip">${esc(c.name)}${c.weight ? ` ${c.weight}%` : ""}</span>`).join("")}</div></div>`).join("")}`;
     $("#dvbody").innerHTML = stocksHtml + etfsHtml + `<div class="mkt-updated">기준: ${d.base_date ? fmtDate("20" + (d.base_date.length === 8 ? d.base_date.slice(2, 4) + "-" + d.base_date.slice(4, 6) + "-" + d.base_date.slice(6, 8) : d.base_date)) : "-"}</div>`;
+  }
+
+  // ── 급등락 (MOVERS) ──
+  const mvstate = { dir: "상승", mkt: "KOSPI" };
+  async function renderMovers(v) {
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">🚀 급등락</div>
+      <div class="ai-sub" style="margin-left:auto">상승률·하락률 상위 · Naver</div></div>
+      <div class="rb-tabs" id="mvtabs"></div><main class="rb-list" id="mvbody"><div class="rb-spin">불러오는 중…</div></main></div>`;
+    let snap; try { snap = await window.API.movers(); } catch (e) { $("#mvbody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
+    if (!snap) { $("#mvbody").innerHTML = `<div class="rb-empty">🚀<div>아직 데이터가 없습니다.</div></div>`; return; }
+    $("#mvtabs").innerHTML = [["상승", "▲ 상승률"], ["하락", "▼ 하락률"]].map(([k, l]) => `<button class="rb-tab${mvstate.dir === k ? " active" : ""}" data-d="${k}">${l}</button>`).join("")
+      + `<span style="width:12px"></span>` + ["KOSPI", "KOSDAQ"].map((mk) => `<button class="rb-tab${mvstate.mkt === mk ? " active" : ""}" data-mk="${mk}">${mk === "KOSPI" ? "코스피" : "코스닥"}</button>`).join("");
+    $("#mvtabs").querySelectorAll("[data-d]").forEach((b) => b.onclick = () => { mvstate.dir = b.dataset.d; renderMovers(v); });
+    $("#mvtabs").querySelectorAll("[data-mk]").forEach((b) => b.onclick = () => { mvstate.mkt = b.dataset.mk; renderMovers(v); });
+    const rows = (snap.data[mvstate.dir] || {})[mvstate.mkt] || [];
+    $("#mvbody").innerHTML = rows.map((r, i) => {
+      const up = (r.change_p ?? 0) > 0;
+      return `<a class="cns-row mv-row" href="https://finance.naver.com/item/main.naver?code=${r.code}" target="_blank" rel="noopener">
+        <span class="flow-rank">${i + 1}</span>
+        <span class="cns-c-name"><b>${esc(r.name)}</b> <span class="cns-code">${esc(r.code)}</span></span>
+        <span class="cns-c-num">${r.price ? Number(r.price).toLocaleString("ko-KR") : "-"}</span>
+        <span class="cns-c-num cns-up ${up ? "up" : "dn"}">${up ? "+" : ""}${r.change_p != null ? r.change_p.toFixed(2) : "-"}%</span></a>`;
+    }).join("") + `<div class="mkt-updated">기준: ${snap.fetched_at ? new Date(snap.fetched_at).toLocaleString("ko-KR") : "-"}</div>`;
+  }
+
+  // ── 섹터 수익률 ──
+  const scstate = { period: "d1" };
+  async function renderSector(v) {
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">💹 섹터 수익률</div>
+      <div class="ai-sub" style="margin-left:auto">KODEX 섹터 ETF 기준 · Naver</div></div>
+      <div class="rb-tabs" id="sctabs"></div><main class="rb-list" id="scbody"><div class="rb-spin">불러오는 중…</div></main></div>`;
+    let snap; try { snap = await window.API.sector(); } catch (e) { $("#scbody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
+    if (!snap) { $("#scbody").innerHTML = `<div class="rb-empty">💹<div>아직 데이터가 없습니다.</div></div>`; return; }
+    const periods = [["d1", "1일"], ["w1", "1주"], ["m1", "1개월"], ["m3", "3개월"]];
+    $("#sctabs").innerHTML = periods.map(([k, l]) => `<button class="rb-tab${scstate.period === k ? " active" : ""}" data-p="${k}">${l}</button>`).join("");
+    $("#sctabs").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { scstate.period = b.dataset.p; renderSector(v); });
+    const rows = [...snap.data].sort((a, b) => (b[scstate.period] ?? -999) - (a[scstate.period] ?? -999));
+    const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r[scstate.period] ?? 0)));
+    $("#scbody").innerHTML = rows.map((r) => {
+      const val = r[scstate.period]; const up = (val ?? 0) >= 0;
+      const w = Math.abs(val ?? 0) / maxAbs * 50;
+      return `<div class="sc-row"><span class="sc-name">${esc(r.sector)}</span>
+        <div class="sc-bar-wrap"><div class="sc-bar ${up ? "up" : "dn"}" style="width:${w}%;${up ? "margin-left:50%" : "margin-left:" + (50 - w) + "%"}"></div></div>
+        <span class="sc-val ${up ? "up" : "dn"}">${up ? "+" : ""}${val != null ? val.toFixed(2) : "-"}%</span></div>`;
+    }).join("") + `<div class="mkt-updated">기준일: ${snap.basis ? fmtDate(snap.basis) : "-"}</div>`;
   }
 
   // ── 증권사 리포트 (FnGuide) ──
