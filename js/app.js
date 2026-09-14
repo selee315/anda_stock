@@ -51,15 +51,20 @@
     return html;
   }
 
-  // 섹션 정의 (홈 카드) — 확장 가능
+  // 섹션 정의 (홈 카드) — cat 으로 홈에서 그룹핑, 확장 가능
   const SECTIONS = [
-    { id: "research", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot·자료실 전체 검색·열람", ready: true, big: true },
-    { id: "reports", icon: "📄", name: "리서치 리포트", desc: "증권사 리포트·목표주가 변동 (FnGuide)", ready: true },
-    { id: "disclosure", icon: "📑", name: "국내 공시", desc: "코스피·코스닥 DART 공시 실시간 피드", ready: true },
-    { id: "consensus", icon: "🔮", name: "컨센서스", desc: "증권사 목표주가·투자의견 집계 (FnGuide)", ready: true },
-    { id: "market", icon: "📈", name: "시장 데이터", desc: "세계지수·환율·원자재 실시간(지연) 시세", ready: true },
-    { id: "ai", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
+    { id: "research", cat: "리서치", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot·자료실 전체 검색·열람", ready: true, big: true },
+    { id: "reports", cat: "리서치", icon: "📄", name: "리서치 리포트", desc: "증권사 리포트·목표주가 변동 (FnGuide)", ready: true },
+    { id: "ai", cat: "리서치", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
+    { id: "consensus", cat: "종목·컨센서스", icon: "🔮", name: "컨센서스", desc: "증권사 목표주가·투자의견 집계 (FnGuide)", ready: true },
+    { id: "disclosure", cat: "종목·컨센서스", icon: "📑", name: "국내 공시", desc: "코스피·코스닥 DART 공시 실시간 피드", ready: true },
+    { id: "dividend", cat: "종목·컨센서스", icon: "💰", name: "배당주", desc: "고배당 ETF·배당 체크리스트 통과 종목 (Naver)", ready: true },
+    { id: "flows", cat: "종목·컨센서스", icon: "💧", name: "수급", desc: "외국인·기관 투자자별 순매수 상위 (Naver)", ready: true },
+    { id: "market", cat: "시장·매크로", icon: "📈", name: "시장 데이터", desc: "세계지수·환율·원자재 실시간(지연) 시세", ready: true },
+    { id: "macro", cat: "시장·매크로", icon: "📐", name: "MACRO", desc: "미국 매크로 지표 — M2·CPI·금리·유동성 (FRED)", ready: true },
+    { id: "news", cat: "뉴스", icon: "📰", name: "뉴스", desc: "시장 뉴스 헤드라인 (RSS·Naver)", ready: true },
   ];
+  const SECTION_CATS = ["리서치", "종목·컨센서스", "시장·매크로", "뉴스"];
 
   const state = { view: "home", source: null, q: "", page: 0, hasMore: true, loading: false, company: null };
 
@@ -100,10 +105,14 @@
             <button class="nav-link" data-v="home">홈</button>
             <button class="nav-link" data-v="research">사내 리서치 자료</button>
             <button class="nav-link" data-v="reports">리서치 리포트</button>
-            <button class="nav-link" data-v="disclosure">국내 공시</button>
-            <button class="nav-link" data-v="consensus">컨센서스</button>
-            <button class="nav-link" data-v="market">시장 데이터</button>
             <button class="nav-link" data-v="ai">AI 리서치</button>
+            <button class="nav-link" data-v="consensus">컨센서스</button>
+            <button class="nav-link" data-v="disclosure">국내 공시</button>
+            <button class="nav-link" data-v="dividend">배당주</button>
+            <button class="nav-link" data-v="flows">수급</button>
+            <button class="nav-link" data-v="market">시장 데이터</button>
+            <button class="nav-link" data-v="macro">MACRO</button>
+            <button class="nav-link" data-v="news">뉴스</button>
           </nav>
           <div class="nav-actions">
             <span class="rb-user">${esc(window.Auth.userLabel(SESSION))}</span>
@@ -132,8 +141,140 @@
     if (state.view === "consensus") return renderConsensus(v);
     if (state.view === "reports") return renderReports(v);
     if (state.view === "market") return renderMarket(v);
+    if (state.view === "macro") return renderMacro(v);
+    if (state.view === "dividend") return renderDividend(v);
+    if (state.view === "flows") return renderFlows(v);
+    if (state.view === "news") return renderNews(v);
     if (state.view === "ai") return renderAI(v);
     return renderHome(v);
+  }
+
+  // ── MACRO (FRED 미국 매크로) ──
+  function sparkline(points, w = 160, h = 40) {
+    const vals = points.map((p) => p.v).filter((v) => v != null);
+    if (vals.length < 2) return "";
+    const min = Math.min(...vals), max = Math.max(...vals), rng = max - min || 1;
+    const step = w / (vals.length - 1);
+    const pts = vals.map((v, i) => `${(i * step).toFixed(1)},${(h - ((v - min) / rng) * h).toFixed(1)}`).join(" ");
+    const up = vals[vals.length - 1] >= vals[0];
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${up ? "var(--up)" : "var(--down)"}" stroke-width="1.5"/></svg>`;
+  }
+  function fmtMacro(val, fmt) {
+    if (val == null) return "-";
+    const n = Number(val);
+    if (fmt === "big") return n >= 1e6 ? `$${(n / 1e6).toFixed(2)}조` : n >= 1000 ? `$${(n / 1000).toFixed(2)}조` : `$${n.toLocaleString("ko-KR")}`;
+    if (fmt === "pct" || fmt === "rate") return `${n.toFixed(fmt === "rate" ? 2 : 1)}%`;
+    return n.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
+  }
+  const MACRO_SECS = { headline: "헤드라인", liquidity: "유동성", inflation: "인플레이션", yield: "금리·수익률곡선", housing: "주택" };
+  async function renderMacro(v) {
+    v.innerHTML = `<div id="market"><div class="ai-head"><div class="rb-title">📐 MACRO</div>
+      <div class="ai-sub">미국 매크로 지표 · FRED · 월별 갱신</div></div>
+      <div id="macroBody" class="mkt-body"><div class="mkt-loading">불러오는 중…</div></div></div>`;
+    let rows; try { rows = await window.API.macro(); } catch (e) { $("#macroBody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
+    if (!rows.length) { $("#macroBody").innerHTML = `<div class="ai-empty">📐<div>아직 데이터가 없습니다.</div></div>`; return; }
+    const groups = {};
+    for (const r of rows) (groups[r.section] ??= []).push(r);
+    const order = ["headline", "liquidity", "inflation", "yield", "housing"];
+    const secs = Object.keys(groups).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    const updated = rows.reduce((m, r) => r.updated_at > m ? r.updated_at : m, "");
+    $("#macroBody").innerHTML = secs.map((sec) => `
+      <div class="mkt-group">
+        <div class="mkt-region">${esc(MACRO_SECS[sec] || sec)}</div>
+        <div class="mkt-grid macro-grid">
+          ${groups[sec].map((r) => {
+            const chg = r.change;
+            const chgCls = chg == null ? "" : chg > 0 ? "up" : chg < 0 ? "dn" : "";
+            const chgTxt = chg == null ? "" : `${chg > 0 ? "▲" : chg < 0 ? "▼" : ""} ${Math.abs(chg).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}`;
+            return `<div class="macro-card">
+              <div class="macro-name">${esc(r.title)}</div>
+              <div class="macro-val">${fmtMacro(r.latest_value, r.fmt)}</div>
+              <div class="macro-foot"><span class="macro-chg ${chgCls}">${chgTxt}</span><span class="macro-date">${r.latest_date ? fmtDate(r.latest_date) : ""}</span></div>
+              ${sparkline(r.points || [])}
+            </div>`;
+          }).join("")}
+        </div>
+      </div>`).join("") + `<div class="mkt-updated">기준: ${updated ? new Date(updated).toLocaleDateString("ko-KR") : "-"} · 출처 FRED</div>`;
+  }
+
+  // ── 뉴스 (RSS) ──
+  const nstate = { source: null, page: 0, hasMore: true, loading: false };
+  function renderNews(v) {
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">📰 뉴스</div></div>
+      <div class="rb-tabs" id="ntabs"></div><main class="rb-list" id="nlist"></main></div>`;
+    const tabs = [[null, "전체"], ["국내", "국내"], ["해외", "해외"]];
+    $("#ntabs").innerHTML = tabs.map(([k, l]) => `<button class="rb-tab${nstate.source === k ? " active" : ""}" data-s="${k || ""}">${l}</button>`).join("");
+    $("#ntabs").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { nstate.source = b.dataset.s || null; renderNews(v); });
+    nstate.page = 0; nstate.hasMore = true; $("#nlist").innerHTML = ""; nLoadMore();
+    $("#nlist").onscroll = () => { const m = $("#nlist"); if (!nstate.loading && nstate.hasMore && m.scrollTop + m.clientHeight > m.scrollHeight - 300) nLoadMore(); };
+  }
+  async function nLoadMore() {
+    if (nstate.loading || !nstate.hasMore) return; nstate.loading = true;
+    const list = $("#nlist"); const spin = el("div", "rb-spin", "불러오는 중…"); list.appendChild(spin);
+    try {
+      const { rows, hasMore } = await window.API.news({ source: nstate.source, page: nstate.page });
+      spin.remove();
+      if (nstate.page === 0 && !rows.length) { list.innerHTML = `<div class="rb-empty">📰<div>뉴스가 없습니다.</div></div>`; nstate.hasMore = false; nstate.loading = false; return; }
+      for (const r of rows) {
+        const a = el("a", "rb-item news-item"); a.href = r.url; a.target = "_blank"; a.rel = "noopener";
+        const t = r.published_at ? new Date(r.published_at) : null;
+        const ago = t ? `${t.getFullYear()}.${String(t.getMonth() + 1).padStart(2, "0")}.${String(t.getDate()).padStart(2, "0")} ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}` : "";
+        a.innerHTML = `<div class="rb-item-main"><div class="rb-item-title">${esc(r.title)}</div>
+          ${r.summary ? `<div class="rb-item-sum">${esc(r.summary)}</div>` : ""}
+          <div class="news-meta"><span class="news-src ${r.source === "해외" ? "ov" : ""}">${esc(r.source || "")}</span> ${ago}</div></div>`;
+        list.appendChild(a);
+      }
+      nstate.page++; nstate.hasMore = hasMore;
+    } catch (e) { spin.remove(); list.insertAdjacentHTML("beforeend", `<div class="rb-empty">⚠️<div>${esc(e.message)}</div></div>`); nstate.hasMore = false; }
+    nstate.loading = false;
+  }
+
+  // ── 수급 (투자자별 순매수) ──
+  const fstate = { inv: "외국인", mkt: "KOSPI" };
+  async function renderFlows(v) {
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">💧 수급</div>
+      <div class="ai-sub" style="margin-left:auto">투자자별 순매수/순매도 상위 · Naver · 금액 백만원</div></div>
+      <div class="rb-tabs" id="ftabs"></div><main class="rb-list" id="fbody"><div class="rb-spin">불러오는 중…</div></main></div>`;
+    let snap; try { snap = await window.API.flows(); } catch (e) { $("#fbody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
+    if (!snap) { $("#fbody").innerHTML = `<div class="rb-empty">💧<div>아직 데이터가 없습니다.</div></div>`; return; }
+    const invs = ["외국인", "기관"], mkts = ["KOSPI", "KOSDAQ"];
+    $("#ftabs").innerHTML = invs.map((iv) => `<button class="rb-tab${fstate.inv === iv ? " active" : ""}" data-iv="${iv}">${iv}</button>`).join("")
+      + `<span style="width:12px"></span>` + mkts.map((mk) => `<button class="rb-tab${fstate.mkt === mk ? " active" : ""}" data-mk="${mk}">${mk === "KOSPI" ? "코스피" : "코스닥"}</button>`).join("");
+    $("#ftabs").querySelectorAll("[data-iv]").forEach((b) => b.onclick = () => { fstate.inv = b.dataset.iv; renderFlows(v); });
+    $("#ftabs").querySelectorAll("[data-mk]").forEach((b) => b.onclick = () => { fstate.mkt = b.dataset.mk; renderFlows(v); });
+    const cell = (snap.data[fstate.inv] || {})[fstate.mkt] || { buy: [], sell: [] };
+    const won = (n) => (n / 100).toLocaleString("ko-KR", { maximumFractionDigits: 0 });  // 백만→억
+    const colTable = (rows, buy) => `<div class="flow-col"><div class="flow-col-h ${buy ? "buy" : "sell"}">${buy ? "순매수" : "순매도"} 상위</div>
+      ${rows.map((r, i) => `<a class="flow-row" href="https://finance.naver.com/item/main.naver?code=${r.code}" target="_blank" rel="noopener">
+        <span class="flow-rank">${i + 1}</span><span class="flow-name">${esc(r.name)}</span>
+        <span class="flow-amt ${buy ? "buy" : "sell"}">${won(Math.abs(r.amt_mn))}억</span></a>`).join("")}</div>`;
+    $("#fbody").innerHTML = `<div class="flow-wrap">${colTable(cell.buy, true)}${colTable(cell.sell, false)}</div>
+      <div class="mkt-updated">기준일: ${snap.basis ? fmtDate(snap.basis) : "-"}</div>`;
+  }
+
+  // ── 배당주 ──
+  async function renderDividend(v) {
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">💰 배당주</div>
+      <div class="ai-sub" style="margin-left:auto">고배당 ETF · 배당 체크리스트 통과 종목 · Naver</div></div>
+      <main class="rb-list" id="dvbody"><div class="rb-spin">불러오는 중…</div></main></div>`;
+    let snap; try { snap = await window.API.dividend(); } catch (e) { $("#dvbody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
+    if (!snap || !snap.data) { $("#dvbody").innerHTML = `<div class="rb-empty">💰<div>아직 데이터가 없습니다.</div></div>`; return; }
+    const d = snap.data;
+    const pct = (n) => n == null ? "-" : `${n > 0 ? "+" : ""}${n.toFixed(1)}%`;
+    const cls = (n) => n == null ? "" : n > 0 ? "up" : n < 0 ? "dn" : "";
+    const stocksHtml = `<div class="dv-sec">배당 체크리스트 통과 종목 <span class="rb-count">${d.stocks.length}</span></div>
+      <div class="dv-hint">배당수익률 3%↑ · 배당성향 70%↓ · 3년 감액 없음 · ROE 8%↑ (스크리닝 ${d.screened_at || ""})</div>
+      <div class="cns-hdr"><span class="cns-c-name">종목</span><span class="cns-c-num">현재가</span><span class="cns-c-num">배당수익률</span><span class="cns-c-num">배당성향</span><span class="cns-c-num">ROE</span><span class="cns-c-num">ETF편입</span></div>
+      ${d.stocks.map((s) => `<div class="cns-row dv-row"><span class="cns-c-name"><b>${esc(s.name)}</b> <span class="cns-code">${s.code}</span><div class="dv-note">${esc(s.note || "")}</div></span>
+        <span class="cns-c-num">${s.price ? Number(s.price).toLocaleString("ko-KR") : "-"}</span>
+        <span class="cns-c-num cns-tp">${s.yld != null ? s.yld.toFixed(1) + "%" : "-"}</span>
+        <span class="cns-c-num">${s.payout}%</span><span class="cns-c-num">${s.roe}%</span>
+        <span class="cns-c-num">${s.etf_count}곳</span></div>`).join("")}`;
+    const etfsHtml = `<div class="dv-sec" style="margin-top:24px">고배당 ETF <span class="rb-count">${d.etfs.length}</span></div>
+      ${d.etfs.map((e) => `<div class="dv-etf"><div class="dv-etf-h"><b>${esc(e.name)}</b> <span class="cns-code">${e.code}</span>
+        <span class="dv-etf-ret"><span class="${cls(e.d1)}">1D ${pct(e.d1)}</span> · <span class="${cls(e.m1)}">1M ${pct(e.m1)}</span> · <span class="${cls(e.m3)}">3M ${pct(e.m3)}</span></span></div>
+        <div class="dv-etf-cons">${(e.constituents || []).slice(0, 8).map((c) => `<span class="dv-chip">${esc(c.name)}${c.weight ? ` ${c.weight}%` : ""}</span>`).join("")}</div></div>`).join("")}`;
+    $("#dvbody").innerHTML = stocksHtml + etfsHtml + `<div class="mkt-updated">기준: ${d.base_date ? fmtDate("20" + (d.base_date.length === 8 ? d.base_date.slice(2, 4) + "-" + d.base_date.slice(4, 6) + "-" + d.base_date.slice(6, 8) : d.base_date)) : "-"}</div>`;
   }
 
   // ── 증권사 리포트 (FnGuide) ──
@@ -451,14 +592,19 @@
           <h1>안다 리서치 포털</h1>
           <p>사내 리서치 자료를 한 곳에서 검색하고 열람하세요.</p>
         </div>
-        <div class="home-grid">
-          ${SECTIONS.map((s) => `
-            <button class="sec-card${s.big ? " big" : ""}${s.ready ? "" : " off"}" data-id="${s.id}" ${s.ready ? "" : "disabled"}>
-              <div class="sec-ic">${s.icon}</div>
-              <div class="sec-name">${esc(s.name)}${s.ready ? "" : ' <span class="sec-soon">준비중</span>'}</div>
-              <div class="sec-desc">${esc(s.desc)}</div>
-            </button>`).join("")}
-        </div>
+        ${SECTION_CATS.map((cat) => {
+          const items = SECTIONS.filter((s) => s.cat === cat);
+          if (!items.length) return "";
+          return `<div class="home-cat">${esc(cat)}</div>
+            <div class="home-grid">
+              ${items.map((s) => `
+                <button class="sec-card${s.big ? " big" : ""}${s.ready ? "" : " off"}" data-id="${s.id}" ${s.ready ? "" : "disabled"}>
+                  <div class="sec-ic">${s.icon}</div>
+                  <div class="sec-name">${esc(s.name)}${s.ready ? "" : ' <span class="sec-soon">준비중</span>'}</div>
+                  <div class="sec-desc">${esc(s.desc)}</div>
+                </button>`).join("")}
+            </div>`;
+        }).join("")}
       </div>`;
     v.querySelectorAll(".sec-card").forEach((c) => { if (!c.disabled) c.onclick = () => go(c.dataset.id); });
   }

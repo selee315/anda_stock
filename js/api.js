@@ -211,5 +211,43 @@ window.API = (() => {
     return data || [];
   }
 
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, PAGE };
+  // MACRO (FRED)
+  async function macro() {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const { data, error } = await sb.from("macro_series")
+      .select("series_id,section,chart_id,title,fmt,units,ord,latest_value,latest_date,prev_value,change,points,updated_at")
+      .order("ord", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+  // 배당주
+  async function dividend() {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const { data, error } = await sb.from("dividend_snapshot").select("*").order("id", { ascending: false }).limit(1).single();
+    if (error) { if (error.code === "PGRST116") return null; throw new Error(error.message); }
+    return data;
+  }
+  // 수급 (투자자별 순매수)
+  async function flows() {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const { data, error } = await sb.from("flows_snapshot").select("*").order("id", { ascending: false }).limit(1).single();
+    if (error) { if (error.code === "PGRST116") return null; throw new Error(error.message); }
+    return data;
+  }
+  // 뉴스
+  async function news({ source = null, page = 0 } = {}) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    let query = sb.from("news").select("id,source,title,url,published_at,summary");
+    if (source) query = query.eq("source", source);
+    query = query.order("published_at", { ascending: false, nullsFirst: false }).range(page * PAGE, page * PAGE + PAGE - 1);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { rows: data || [], hasMore: (data || []).length === PAGE };
+  }
+
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, PAGE };
 })();

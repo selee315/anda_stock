@@ -250,3 +250,50 @@ button { font-family: inherit; cursor: pointer; }
 .rp-mark.up { color: var(--up); background: rgba(31,158,79,.1); }
 .rp-mark.dn { color: var(--down); background: rgba(208,69,47,.1); }
 .rp-meta { font-size: 12px; color: var(--dim); margin-top: 3px; }
+
+/* ── 홈 카테고리 + nav 스크롤 ── */
+.home-cat { max-width: 900px; margin: 26px auto 12px; font-size: 12px; font-weight: 800; letter-spacing: .04em; color: var(--accent); }
+.nav-links { overflow-x: auto; scrollbar-width: thin; }
+.nav-links::-webkit-scrollbar { height: 0; }
+
+/* ── MACRO ── */
+.macro-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.macro-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+.macro-name { font-size: 12.5px; color: var(--dim); font-weight: 600; }
+.macro-val { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 4px 0 2px; }
+.macro-foot { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.macro-chg { font-weight: 700; font-variant-numeric: tabular-nums; }
+.macro-chg.up { color: var(--up); } .macro-chg.dn { color: var(--down); }
+.macro-date { color: var(--faint); font-size: 11px; }
+.spark { width: 100%; height: 38px; margin-top: 8px; display: block; }
+
+/* ── 뉴스 ── */
+.news-item { display: block; text-decoration: none; color: inherit; }
+.news-item:hover { background: var(--soft); }
+.news-meta { font-size: 11.5px; color: var(--faint); margin-top: 5px; }
+.news-src { font-weight: 700; color: var(--accent-d); background: var(--soft); border-radius: 4px; padding: 1px 6px; margin-right: 4px; }
+.news-src.ov { color: #1f6fd0; background: rgba(31,111,208,.1); }
+
+/* ── 수급 ── */
+.flow-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px 0; }
+.flow-col-h { font-size: 12.5px; font-weight: 800; padding: 8px 6px; border-bottom: 2px solid var(--line); }
+.flow-col-h.buy { color: var(--up); } .flow-col-h.sell { color: var(--down); }
+.flow-row { display: flex; align-items: center; gap: 10px; padding: 9px 6px; border-bottom: 1px solid var(--line2); text-decoration: none; color: inherit; }
+.flow-row:hover { background: var(--soft); }
+.flow-rank { width: 20px; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.flow-name { flex: 1; font-weight: 600; font-size: 13.5px; }
+.flow-amt { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13px; }
+.flow-amt.buy { color: var(--up); } .flow-amt.sell { color: var(--down); }
+@media (max-width: 560px) { .flow-wrap { grid-template-columns: 1fr; } }
+
+/* ── 배당주 ── */
+.dv-sec { font-size: 14px; font-weight: 800; padding: 12px 4px 4px; }
+.dv-hint { font-size: 11.5px; color: var(--faint); padding: 0 4px 8px; }
+.dv-row { align-items: flex-start; }
+.dv-note { font-size: 11px; color: var(--faint); font-weight: 400; margin-top: 3px; max-width: 320px; }
+.dv-etf { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 8px 0; background: var(--card); }
+.dv-etf-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dv-etf-ret { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--dim); }
+.dv-etf-ret .up { color: var(--up); } .dv-etf-ret .dn { color: var(--down); }
+.dv-etf-cons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.dv-chip { font-size: 11px; background: var(--card2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; color: var(--dim); }
