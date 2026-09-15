@@ -26,19 +26,51 @@ const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: fal
 
 // 신형 데이터소스 API 지원 (구형 databases.query 로는 data-source DB 를 못 읽음)
 const NOTION_VERSION = "2025-09-03";
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// 429(rate limit)·5xx 시 Retry-After/지수백오프로 재시도
 async function notionFetch(path, method = "GET", body) {
-  const res = await fetch("https://api.notion.com" + path, {
-    method,
-    headers: {
-      Authorization: `Bearer ${NOTION_TOKEN}`,
-      "Notion-Version": NOTION_VERSION,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const j = await res.json();
-  if (!res.ok) throw new Error(j.message || `HTTP ${res.status}`);
-  return j;
+  let delay = 1000;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const res = await fetch("https://api.notion.com" + path, {
+      method,
+      headers: {
+        Authorization: `Bearer ${NOTION_TOKEN}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json",
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (res.status === 429 || res.status >= 500) {
+      const ra = Number(res.headers.get("retry-after"));
+      await sleep(ra > 0 ? ra * 1000 + 300 : delay);
+      delay = Math.min(delay * 2, 16000);
+      continue;
+    }
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.message || `HTTP ${res.status}`);
+    return j;
+  }
+  throw new Error("rate limit: 재시도 초과");
+}
+
+// SDK 호출(429 재시도) 래퍼
+async function withRetry(fn) {
+  let delay = 1000;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try { return await fn(); }
+    catch (e) {
+      const code = e?.status || e?.code;
+      if (code === 429 || code === "rate_limited" || (e?.status >= 500)) {
+        const ra = Number(e?.headers?.["retry-after"]);
+        await sleep(ra > 0 ? ra * 1000 + 300 : delay);
+        delay = Math.min(delay * 2, 16000);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error("rate limit: 재시도 초과");
 }
 async function dataSourceIdsOf(dbId) {
   const j = await notionFetch(`/v1/databases/${dbId}`);
@@ -91,7 +123,8 @@ async function pageMarkdown(pageId, depth = 0) {
   if (depth > 6) return "";  // 안전장치
   let out = [], cursor;
   do {
-    const res = await notion.blocks.children.list({ block_id: pageId, start_cursor: cursor, page_size: 100 });
+    await sleep(130);   // Notion 초당 ~3req 한도 대응(429 빈도 감소)
+    const res = await withRetry(() => notion.blocks.children.list({ block_id: pageId, start_cursor: cursor, page_size: 100 }));
     for (const b of res.results) {
       if (b.type === "child_database") {
         // 인라인 DB(예: 회사 페이지 안의 "노트") → 행들의 본문까지 끌어와 붙임
