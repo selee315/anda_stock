@@ -85,6 +85,19 @@ window.API = (() => {
     return data || [];
   }
 
+  // 이 브라우저(단말기)의 고유 ID — 공용 계정이라도 기록을 사람별로 분리
+  function clientId() {
+    try {
+      let id = localStorage.getItem("anda_ai_client");
+      if (!id) {
+        id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+          : "c-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+        localStorage.setItem("anda_ai_client", id);
+      }
+      return id;
+    } catch { return "anon"; }
+  }
+
   // AI 리서치 질의 생성
   async function aiAsk(question) {
     const sb = window.SB.client();
@@ -92,19 +105,19 @@ window.API = (() => {
     const { data: s } = await sb.auth.getSession();
     const uid = s?.session?.user?.id;
     if (!uid) throw new Error("로그인이 필요합니다 (미리보기 모드에선 AI 사용 불가)");
-    const { data, error } = await sb.from("ai_requests").insert({ question, user_id: uid }).select().single();
+    const { data, error } = await sb.from("ai_requests")
+      .insert({ question, user_id: uid, client_id: clientId() }).select().single();
     if (error) throw new Error(error.message);
     return data;
   }
-  // 내 지난 AI 대화 불러오기 (최근순 → 오래된순으로 뒤집어 반환)
+  // 내 지난 AI 대화 불러오기 — 이 브라우저(client_id) 것만 (최근순→오래된순)
   async function aiHistory(limit = 20) {
     const sb = window.SB.client();
     if (!sb) return [];
     const { data: s } = await sb.auth.getSession();
-    const uid = s?.session?.user?.id;
-    if (!uid) return [];
+    if (!s?.session?.user?.id) return [];
     const { data } = await sb.from("ai_requests")
-      .select("id,question,answer,status").eq("user_id", uid)
+      .select("id,question,answer,status").eq("client_id", clientId())
       .order("id", { ascending: false }).limit(limit);
     return (data || []).reverse();
   }
