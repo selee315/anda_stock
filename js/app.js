@@ -14,6 +14,30 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtDate = (d) => { if (!d) return ""; const t = new Date(d); if (isNaN(t)) return esc(d); const p = (n) => String(n).padStart(2, "0"); return `${t.getFullYear()}.${p(t.getMonth() + 1)}.${p(t.getDate())}`; };
 
+  // ── 라인 아이콘 (Lucide 스타일) ──
+  const ICONS = {
+    home: '<path d="M3 9.5 12 3l9 6.5"/><path d="M5 8.5V21h14V8.5"/>',
+    research: '<path d="M12 7v13"/><path d="M3 5.5A1.5 1.5 0 0 1 4.5 4H9a3 3 0 0 1 3 3 3 3 0 0 1 3-3h4.5A1.5 1.5 0 0 1 21 5.5V18a1 1 0 0 1-1 1h-6a2 2 0 0 0-2 2 2 2 0 0 0-2-2H4a1 1 0 0 1-1-1z"/>',
+    reports: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
+    ai: '<path d="M9 4 10.3 8 14 9l-3.7 1L9 14l-1.3-4L4 9l3.7-1z"/><path d="M17 13l.8 2.2L20 16l-2.2.8L17 19l-.8-2.2L14 16l2.2-.8z"/>',
+    stock: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>',
+    consensus: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
+    disclosure: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="m9 14.5 2 2 3.5-3.5"/>',
+    dividend: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
+    flows: '<path d="M7 4 3 8l4 4"/><path d="M3 8h13"/><path d="m17 20 4-4-4-4"/><path d="M21 16H8"/>',
+    market: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.5 2.3 2.5 14.7 0 17M12 3.5c-2.5 2.3-2.5 14.7 0 17"/>',
+    movers: '<path d="m3 16 5-5 4 4 8.5-8.5"/><path d="M15 6.5h5.5V12"/>',
+    sector: '<path d="M4 4v16h16"/><path d="M8 16v-4M12.5 16V8M17 16v-6"/>',
+    macro: '<path d="M3 12h3.5l2.5 7 4-14 2.5 7H21"/>',
+    news: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h6M7 13h6M16 9h1M16 13h1"/>',
+    theme: '<path d="M12 3a6.5 6.5 0 0 0 9 9 9 9 0 1 1-9-9"/>',
+    logout: '<path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><path d="m15 16 4-4-4-4"/><path d="M19 12H9"/>',
+    back: '<path d="M15 19 8 12l7-7"/>',
+    menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+    brand: '<path d="M4 19V9M9 19V5M14 19v-7M19 19v-4"/>',
+  };
+  const svg = (n, cls = "") => `<svg class="ic${cls ? " " + cls : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ""}</svg>`;
+
   const mdInline = (t) => esc(t)
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
@@ -99,48 +123,57 @@
 
   // ── 셸 ──
   let SESSION = null;
+  function sidebarNav() {
+    const item = (id, name) => `<button class="sb-item" data-v="${id}">${svg(id)}<span>${esc(name)}</span></button>`;
+    let html = `<div class="sb-group">${item("home", "홈")}</div>`;
+    for (const cat of SECTION_CATS) {
+      const items = SECTIONS.filter((s) => s.cat === cat);
+      if (!items.length) continue;
+      html += `<div class="sb-group"><div class="sb-group-label">${esc(cat)}</div>${items.map((s) => item(s.id, s.name)).join("")}</div>`;
+    }
+    return html;
+  }
   function renderShell() {
     document.body.innerHTML = `
-      <div id="app">
-        <header class="nav">
-          <button class="nav-brand" id="navHome">🏛️ <b>안다 리서치 포털</b></button>
-          <nav class="nav-links">
-            <button class="nav-link" data-v="home">홈</button>
-            <button class="nav-link" data-v="research">사내 리서치 자료</button>
-            <button class="nav-link" data-v="reports">리서치 리포트</button>
-            <button class="nav-link" data-v="ai">AI 리서치</button>
-            <button class="nav-link" data-v="stock">종목 검색</button>
-            <button class="nav-link" data-v="consensus">컨센서스</button>
-            <button class="nav-link" data-v="disclosure">국내 공시</button>
-            <button class="nav-link" data-v="dividend">배당주</button>
-            <button class="nav-link" data-v="flows">수급</button>
-            <button class="nav-link" data-v="market">시장 데이터</button>
-            <button class="nav-link" data-v="movers">급등락</button>
-            <button class="nav-link" data-v="sector">섹터</button>
-            <button class="nav-link" data-v="macro">MACRO</button>
-            <button class="nav-link" data-v="news">뉴스</button>
-          </nav>
-          <div class="nav-actions">
-            <span class="rb-user">${esc(window.Auth.userLabel(SESSION))}</span>
-            <button id="themebtn" class="rb-ic" title="테마">🌓</button>
-            <button id="logout" class="rb-ic" title="로그아웃">⎋</button>
+      <div class="shell" id="shell">
+        <aside class="sidebar">
+          <button class="sb-brand" id="navHome"><span class="sb-logo">${svg("brand")}</span><span class="sb-brand-t">안다 리서치</span></button>
+          <nav class="sb-nav">${sidebarNav()}</nav>
+          <div class="sb-foot">
+            <div class="sb-user" title="${esc(window.Auth.userLabel(SESSION))}">${esc(window.Auth.userLabel(SESSION))}</div>
+            <div class="sb-foot-btns">
+              <button id="themebtn" class="sb-ic" title="테마">${svg("theme")}</button>
+              <button id="logout" class="sb-ic" title="로그아웃">${svg("logout")}</button>
+            </div>
           </div>
-        </header>
-        <div id="view"></div>
+        </aside>
+        <div class="scrim" id="scrim"></div>
+        <main class="main">
+          <header class="topbar">
+            <button class="tb-menu" id="tbMenu" aria-label="메뉴">${svg("menu")}</button>
+            <div class="topbar-title" id="tbTitle"></div>
+          </header>
+          <div id="view"></div>
+        </main>
       </div>
       <div id="reader" class="reader hidden"></div>
-      ${SESSION.preview ? `<div class="preview-banner">🔎 미리보기 모드</div>` : ""}`;
-    $("#navHome").onclick = () => go("home");
+      ${SESSION.preview ? `<div class="preview-banner">미리보기 모드</div>` : ""}`;
+    const closeSb = () => $("#shell").classList.remove("sb-open");
+    $("#navHome").onclick = () => { go("home"); closeSb(); };
     $("#themebtn").onclick = toggleTheme;
     $("#logout").onclick = async () => { await window.Auth.signOut(); renderLogin(); };
-    document.querySelectorAll(".nav-link").forEach((b) => b.onclick = () => go(b.dataset.v));
+    $("#tbMenu").onclick = () => $("#shell").classList.toggle("sb-open");
+    $("#scrim").onclick = closeSb;
+    document.querySelectorAll(".sb-item").forEach((b) => b.onclick = () => { go(b.dataset.v); closeSb(); });
     renderView();
   }
 
   function go(v) { state.view = v; renderView(); }
 
   function renderView() {
-    document.querySelectorAll(".nav-link").forEach((b) => b.classList.toggle("active", b.dataset.v === state.view));
+    document.querySelectorAll(".sb-item").forEach((b) => b.classList.toggle("active", b.dataset.v === state.view));
+    const cur = state.view === "home" ? { id: "home", name: "홈" } : (SECTIONS.find((s) => s.id === state.view) || { id: state.view, name: "" });
+    const tb = $("#tbTitle"); if (tb) tb.innerHTML = `${svg(cur.id, "tb-ic-svg")}<span>${esc(cur.name)}</span>`;
     const v = $("#view"); v.className = "";
     if (state.view === "research") return renderResearch(v);
     if (state.view === "disclosure") return renderDisclosure(v);
@@ -177,7 +210,7 @@
   }
   const MACRO_SECS = { headline: "헤드라인", liquidity: "유동성", inflation: "인플레이션", yield: "금리·수익률곡선", housing: "주택" };
   async function renderMacro(v) {
-    v.innerHTML = `<div id="market"><div class="ai-head"><div class="rb-title">📐 MACRO</div>
+    v.innerHTML = `<div id="market"><div class="ai-head"><div class="rb-title">MACRO</div>
       <div class="ai-sub">미국 매크로 지표 · FRED · 월별 갱신</div></div>
       <div id="macroBody" class="mkt-body"><div class="mkt-loading">불러오는 중…</div></div></div>`;
     let rows; try { rows = await window.API.macro(); } catch (e) { $("#macroBody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
@@ -209,7 +242,7 @@
   // ── 뉴스 (RSS) ──
   const nstate = { source: null, page: 0, hasMore: true, loading: false };
   function renderNews(v) {
-    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">📰 뉴스</div></div>
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">뉴스</div></div>
       <div class="rb-tabs" id="ntabs"></div><main class="rb-list" id="nlist"></main></div>`;
     const tabs = [[null, "전체"], ["국내", "국내"], ["해외", "해외"]];
     $("#ntabs").innerHTML = tabs.map(([k, l]) => `<button class="rb-tab${nstate.source === k ? " active" : ""}" data-s="${k || ""}">${l}</button>`).join("");
@@ -241,7 +274,7 @@
   // ── 수급 (투자자별 순매수) ──
   const fstate = { inv: "외국인", mkt: "KOSPI" };
   async function renderFlows(v) {
-    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">💧 수급</div>
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">수급</div>
       <div class="ai-sub" style="margin-left:auto">투자자별 순매수/순매도 상위 · Naver · 금액 백만원</div></div>
       <div class="rb-tabs" id="ftabs"></div><main class="rb-list" id="fbody"><div class="rb-spin">불러오는 중…</div></main></div>`;
     let snap; try { snap = await window.API.flows(); } catch (e) { $("#fbody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
@@ -263,7 +296,7 @@
 
   // ── 배당주 ──
   async function renderDividend(v) {
-    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">💰 배당주</div>
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">배당주</div>
       <div class="ai-sub" style="margin-left:auto">고배당 ETF · 배당 체크리스트 통과 종목 · Naver</div></div>
       <main class="rb-list" id="dvbody"><div class="rb-spin">불러오는 중…</div></main></div>`;
     let snap; try { snap = await window.API.dividend(); } catch (e) { $("#dvbody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
@@ -289,7 +322,7 @@
   // ── 급등락 (MOVERS) ──
   const mvstate = { dir: "상승", mkt: "KOSPI" };
   async function renderMovers(v) {
-    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">🚀 급등락</div>
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">급등락</div>
       <div class="ai-sub" style="margin-left:auto">상승률·하락률 상위 · Naver</div></div>
       <div class="rb-tabs" id="mvtabs"></div><main class="rb-list" id="mvbody"><div class="rb-spin">불러오는 중…</div></main></div>`;
     let snap; try { snap = await window.API.movers(); } catch (e) { $("#mvbody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
@@ -313,7 +346,7 @@
   // ── 섹터 수익률 ──
   const scstate = { period: "d1" };
   async function renderSector(v) {
-    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">💹 섹터 수익률</div>
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">섹터 수익률</div>
       <div class="ai-sub" style="margin-left:auto">KODEX 섹터 ETF 기준 · Naver</div></div>
       <div class="rb-tabs" id="sctabs"></div><main class="rb-list" id="scbody"><div class="rb-spin">불러오는 중…</div></main></div>`;
     let snap; try { snap = await window.API.sector(); } catch (e) { $("#scbody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
@@ -335,7 +368,7 @@
   // ── 종목 통합 뷰 ──
   const skstate = { q: "", sel: null };
   function renderStock(v) {
-    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">🔎 종목 검색</div>
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">종목 검색</div>
       <div class="rb-search"><input id="skq" placeholder="종목명·종목코드…" value="${esc(skstate.q)}" autocomplete="off" /></div></div>
       <main class="rb-list" id="skbody"></main></div>`;
     const qEl = $("#skq"); let t;
@@ -406,7 +439,7 @@
     v.innerHTML = `
       <div id="rb">
         <div class="rb-head">
-          <div class="rb-title">📄 리서치 리포트</div>
+          <div class="rb-title">리서치 리포트</div>
           <div class="rb-search"><input id="rpq" placeholder="종목·제목·증권사 검색…" value="${esc(rpstate.q)}" /></div>
         </div>
         <div id="rpChanged"></div>
@@ -483,7 +516,7 @@
     v.innerHTML = `
       <div id="rb">
         <div class="rb-head">
-          <div class="rb-title">🔮 컨센서스</div>
+          <div class="rb-title">컨센서스</div>
           <div class="rb-search"><input id="cq" placeholder="회사명·종목코드 검색…" value="${esc(cstate.q)}" /></div>
         </div>
         <div class="rb-tabs" id="csort"></div>
@@ -540,7 +573,7 @@
     v.innerHTML = `
       <div id="rb">
         <div class="rb-head">
-          <div class="rb-title">📑 국내 공시</div>
+          <div class="rb-title">국내 공시</div>
           <div class="rb-search"><input id="dq" placeholder="회사명·공시명 검색…" value="${esc(dstate.q)}" /></div>
         </div>
         <div class="rb-tabs" id="dmkt"></div>
@@ -598,7 +631,7 @@
   async function renderMarket(v) {
     v.innerHTML = `
       <div id="market">
-        <div class="ai-head"><div class="rb-title">📈 시장 데이터</div>
+        <div class="ai-head"><div class="rb-title">시장 데이터</div>
           <div class="ai-sub">세계지수·환율·원자재 지연 시세 · EODHD · 하루 1회 스냅샷</div></div>
         <div id="mktBody" class="mkt-body"><div class="mkt-loading">불러오는 중…</div></div>
       </div>`;
@@ -648,7 +681,7 @@
   function renderAI(v) {
     v.innerHTML = `
       <div id="ai">
-        <div class="ai-head"><div class="rb-title">🤖 AI 리서치</div>
+        <div class="ai-head"><div class="rb-title">AI 리서치</div>
           <div class="ai-sub">사내 리서치 자료를 스스로 검색·정독하고 웹까지 활용해 답합니다 · Claude Opus (Max)</div></div>
         <div class="ai-log" id="aiLog"></div>
         <form class="ai-form" id="aiForm">
@@ -722,7 +755,7 @@
             <div class="home-grid">
               ${items.map((s) => `
                 <button class="sec-card${s.big ? " big" : ""}${s.ready ? "" : " off"}" data-id="${s.id}" ${s.ready ? "" : "disabled"}>
-                  <div class="sec-ic">${s.icon}</div>
+                  <div class="sec-ic">${svg(s.id)}</div>
                   <div class="sec-body">
                     <div class="sec-name">${esc(s.name)}${s.ready ? "" : ' <span class="sec-soon">준비중</span>'}</div>
                     <div class="sec-desc">${esc(s.desc)}</div>
@@ -739,7 +772,7 @@
     v.innerHTML = `
       <div id="rb">
         <div class="rb-head">
-          <div class="rb-title">📚 사내 리서치 자료</div>
+          <div class="rb-title">사내 리서치 자료</div>
           <div class="rb-search"><input id="q" placeholder="제목·내용 검색…" value="${esc(state.q)}" /></div>
         </div>
         <div class="rb-tabs" id="tabs"></div>
