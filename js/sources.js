@@ -5,7 +5,6 @@ window.SOURCES = [
   "증권사/외부 세미나",
   "모닝 브리핑",
   "Spot Comment",
-  "자료실",
 ];
 window.SOURCE_ICON = {
   "회의록": "📝",
@@ -13,7 +12,6 @@ window.SOURCE_ICON = {
   "증권사/외부 세미나": "🎤",
   "모닝 브리핑": "🌅",
   "Spot Comment": "🗒️",
-  "자료실": "📂",
 };
 
 // DART 공시유형(pblntf_ty) — 필터 탭용. 리서치에서 자주 보는 순서.

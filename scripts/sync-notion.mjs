@@ -194,7 +194,6 @@ const TEAM_DBS = [
   { id: "38838dfd-53bc-8047-a92e-e5cfd3000e78", name: "증권사/외부 세미나" },
   { id: "d0708e9c-9f78-4f46-a10b-4fb948403ead", name: "모닝 브리핑" },
   { id: "38a38dfd-53bc-807b-a215-e4d21eeb9a64", name: "Spot Comment" },
-  { id: "26038dfd-53bc-835b-a5cf-010197970f0e", name: "자료실" },
 ];
 
 // 팀 DB 들의 행만 수집 (넓은 search 안 함 = 개인자료 제외). 행에 _source 태그.
@@ -263,7 +262,9 @@ async function run() {
         }
       }
       const category = pageProp(page, "카테고리") || pageProp(page, "Category") || null;
-      const date = validDate(pageProp(page, "날짜")) || dateFromTitle(title);
+      // 제목의 날짜(예: 260914·20260914)를 우선 — 노션 "날짜" 속성이 생성일 등으로
+      // 오염된 경우가 많아 정렬이 뒤죽박죽되던 문제 방지. 제목에 날짜 없으면 속성 사용.
+      const date = dateFromTitle(title) || validDate(pageProp(page, "날짜"));
       const summary = (content || "").replace(/[#>*`\-]/g, "").replace(/\s+/g, " ").trim().slice(0, 220);
       const row = {
         notion_id: page.id,

@@ -77,7 +77,7 @@
 
   // 섹션 정의 (홈 카드) — cat 으로 홈에서 그룹핑, 확장 가능
   const SECTIONS = [
-    { id: "research", cat: "리서치", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot·자료실 전체 검색·열람", ready: true, big: true },
+    { id: "research", cat: "리서치", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot Comment 전체 검색·열람", ready: true, big: true },
     { id: "reports", cat: "리서치", icon: "📄", name: "리서치 리포트", desc: "증권사 리포트·목표주가 변동 (FnGuide)", ready: true },
     { id: "ai", cat: "리서치", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
     { id: "stock", cat: "종목·컨센서스", icon: "🔎", name: "종목 검색", desc: "종목 하나로 현재가·컨센서스·리포트·공시 통합 조회", ready: true },
