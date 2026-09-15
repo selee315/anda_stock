@@ -723,8 +723,10 @@
               ${items.map((s) => `
                 <button class="sec-card${s.big ? " big" : ""}${s.ready ? "" : " off"}" data-id="${s.id}" ${s.ready ? "" : "disabled"}>
                   <div class="sec-ic">${s.icon}</div>
-                  <div class="sec-name">${esc(s.name)}${s.ready ? "" : ' <span class="sec-soon">준비중</span>'}</div>
-                  <div class="sec-desc">${esc(s.desc)}</div>
+                  <div class="sec-body">
+                    <div class="sec-name">${esc(s.name)}${s.ready ? "" : ' <span class="sec-soon">준비중</span>'}</div>
+                    <div class="sec-desc">${esc(s.desc)}</div>
+                  </div>
                 </button>`).join("")}
             </div>`;
         }).join("")}
