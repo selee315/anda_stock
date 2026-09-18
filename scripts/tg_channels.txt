@@ -1,0 +1,7 @@
+# 텔레그램 수집 대상 채널 — 한 줄에 하나
+# 형식: @username  또는  t.me/username  또는  채널명
+# (공개 채널은 @username 권장. 비공개는 내가 가입한 채널명으로도 가능)
+# 예시 (원하는 걸로 교체하세요):
+# @yonhap_infomax
+# @thebell_news
+# @some_broker_fast_channel

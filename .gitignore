@@ -20,3 +20,9 @@ briefs/
 scripts/.kis_token.json
 scripts/kis.log
 scripts/kis.err.log
+
+# telegram sessions & logs
+*.session
+*.session-journal
+scripts/*.log
+scripts/*.err.log

@@ -734,9 +734,17 @@
         ${it.status === "pending" || it.status === "processing"
           ? `<div class="ai-think">💭 ${it.status === "processing" ? "작업 중…" : "대기 중…"}</div>
              ${it.progress ? `<div class="ai-progress">${it.progress.split("\n").map((p) => `<div>${esc(p)}</div>`).join("")}</div>` : ""}`
-          : (it.status === "error" ? `<div class="ai-err">⚠️ ${esc(it.a)}</div>` : mdToHtml(it.a))}
+          : (it.status === "error" ? `<div class="ai-err">⚠️ ${esc(it.a)}</div>` : linkifyCites(mdToHtml(it.a)))}
       </div>`).join("");
+    // 출처 [사내노트 #id] 클릭 → 노트 열기(노션 원문 링크 포함)
+    box.querySelectorAll(".ai-cite").forEach((a) => a.onclick = (e) => { e.preventDefault(); openReader(+a.dataset.note); });
     box.scrollTop = box.scrollHeight;
+  }
+
+  // AI 답변의 사내노트 출처(#id)를 클릭 가능한 링크로
+  function linkifyCites(html) {
+    return html.replace(/#(\d{3,6})\b/g, (m, id) =>
+      `<a class="ai-cite" data-note="${id}" href="#" title="사내 리서치 노트 열기">${m}</a>`);
   }
 
   // ── 홈 ──

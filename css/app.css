@@ -365,3 +365,7 @@ button { font-family: inherit; cursor: pointer; }
 .sk-chg { font-size: 13px; }
 .sk-52 { font-size: 14px; }
 .sk-m-v { line-height: 1.25; }
+
+/* AI 답변 내 사내노트 출처 링크 */
+.ai-a .ai-cite{color:var(--accent,#1a8a4d);font-weight:600;text-decoration:none;border-bottom:1px dashed currentColor;cursor:pointer}
+.ai-a .ai-cite:hover{background:rgba(26,138,77,.1);border-radius:3px}
