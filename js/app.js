@@ -760,31 +760,57 @@
   }
 
   // ── 홈 ──
+  const HOME_PILLARS = [
+    { id: "research", emoji: "📚", name: "자료 데이터베이스", desc: "노션 사내 리서치 — 회의록·기업탐방·세미나·모닝브리핑·Spot 전체를 검색·열람" },
+    { id: "ai", emoji: "🤖", name: "AI 리서치 비서", desc: "사내자료·리포트·텔레그램·이메일·컨센·공시를 종합해 객관적으로 답하는 우리만의 비서" },
+    { id: "stock", emoji: "🏢", name: "기업 검색", desc: "한 종목 = 시세·컨센서스·리포트·공시·우리 리서치·뉴스를 한 화면에" },
+  ];
   function renderHome(v) {
+    const pillarIds = HOME_PILLARS.map((p) => p.id);
+    const others = SECTIONS.filter((s) => !pillarIds.includes(s.id));
     v.innerHTML = `
       <div class="home">
         <div class="home-hero">
-          <div class="home-cap">ANDA ASSET · 사내 포털</div>
+          <div class="home-cap">ANDA ASSET · 리서치 포털</div>
           <h1>안다 리서치 포털</h1>
-          <p>사내 리서치 자료를 한 곳에서 검색하고 열람하세요.</p>
+          <p>우리 리서치 자료 · AI 비서 · 기업 데이터를 한 곳에서.</p>
         </div>
-        ${SECTION_CATS.map((cat) => {
-          const items = SECTIONS.filter((s) => s.cat === cat);
-          if (!items.length) return "";
-          return `<div class="home-cat">${esc(cat)}</div>
-            <div class="home-grid">
-              ${items.map((s) => `
-                <button class="sec-card${s.big ? " big" : ""}${s.ready ? "" : " off"}" data-id="${s.id}" ${s.ready ? "" : "disabled"}>
-                  <div class="sec-ic">${svg(s.id)}</div>
-                  <div class="sec-body">
-                    <div class="sec-name">${esc(s.name)}${s.ready ? "" : ' <span class="sec-soon">준비중</span>'}</div>
-                    <div class="sec-desc">${esc(s.desc)}</div>
-                  </div>
-                </button>`).join("")}
-            </div>`;
-        }).join("")}
+        <div class="pillar-grid">
+          ${HOME_PILLARS.map((p) => `
+            <button class="pillar-card" data-id="${p.id}">
+              <div class="pillar-ic">${svg(p.id)}</div>
+              <div class="pillar-name">${p.emoji} ${esc(p.name)}</div>
+              <div class="pillar-desc">${esc(p.desc)}</div>
+              <div class="pillar-go">바로가기 →</div>
+            </button>`).join("")}
+        </div>
+        <div class="home-cat">📌 최근 사내 리서치</div>
+        <div id="homeFeed" class="home-feed"><div class="rb-spin">불러오는 중…</div></div>
+        <div class="home-cat">전체 메뉴</div>
+        <div class="home-grid">
+          ${others.map((s) => `
+            <button class="sec-card${s.ready ? "" : " off"}" data-id="${s.id}" ${s.ready ? "" : "disabled"}>
+              <div class="sec-ic">${svg(s.id)}</div>
+              <div class="sec-body">
+                <div class="sec-name">${esc(s.name)}${s.ready ? "" : ' <span class="sec-soon">준비중</span>'}</div>
+                <div class="sec-desc">${esc(s.desc)}</div>
+              </div>
+            </button>`).join("")}
+        </div>
       </div>`;
+    v.querySelectorAll(".pillar-card").forEach((c) => c.onclick = () => go(c.dataset.id));
     v.querySelectorAll(".sec-card").forEach((c) => { if (!c.disabled) c.onclick = () => go(c.dataset.id); });
+    // 최근 사내 리서치 피드 (홈에서 바로)
+    window.API.list({ page: 0 }).then(({ rows }) => {
+      const feed = $("#homeFeed"); if (!feed) return;
+      const items = (rows || []).slice(0, 6);
+      feed.innerHTML = items.length ? items.map((n) => `
+        <button class="hf-item" data-id="${n.id}">
+          <span class="hf-title">${esc(n.title || "(제목 없음)")}</span>
+          <span class="hf-meta">${n.source_db ? `<span class="rb-badge">${esc(n.source_db)}</span>` : ""}${n.meeting_date ? fmtDate(n.meeting_date) : ""}</span>
+        </button>`).join("") : `<div class="rb-empty-t" style="padding:14px">최근 노트가 없습니다.</div>`;
+      feed.querySelectorAll(".hf-item").forEach((el) => el.onclick = () => openReader(+el.dataset.id));
+    }).catch(() => { const feed = $("#homeFeed"); if (feed) feed.innerHTML = ""; });
   }
 
   // ── 사내 리서치 자료 (브라우저) ──
