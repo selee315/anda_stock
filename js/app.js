@@ -420,6 +420,11 @@
         <div class="sk-metrics">${M.map((m) => `<div class="sk-m"><span class="sk-m-l">${m.l}</span><span class="sk-m-v">${m.v}</span></div>`).join("")}</div>
         ${!c && !k ? `<div class="rp-meta">현재가·컨센서스 데이터 없음</div>` : ""}
       </div>`;
+    // 📒 우리 리서치 (사내 노트 — 클릭하면 전문 열림)
+    const ours = (d.notes && d.notes.length) ? `<div class="sk-sec">📒 우리 리서치 <span class="rb-count">${d.notes.length}</span></div>
+      ${d.notes.map((n) => `<div class="rb-item co-note sk-note" data-id="${n.id}">
+        <div class="rb-item-main"><div class="rb-item-title">${esc(n.title || "(제목 없음)")}</div>${n.summary ? `<div class="rb-item-sum">${esc(n.summary)}</div>` : ""}</div>
+        <div class="rb-item-meta">${n.source_db ? `<span class="rb-badge">${esc(n.source_db)}</span>` : ""}${n.meeting_date ? `<span class="rb-date">${fmtDate(n.meeting_date)}</span>` : ""}</div></div>`).join("")}` : "";
     const reps = d.reports.length ? `<div class="sk-sec">📄 증권사 리포트 <span class="rb-count">${d.reports.length}</span></div>
       ${d.reports.map((r) => { const mk = { "상향": " ▲", "하향": " ▼" }[r.tp_dir] || ""; return `<a class="rb-item rp-item" href="${esc(r.url)}" target="_blank" rel="noopener">
         <div class="rb-item-main"><div class="rb-item-title">${esc(r.title || "")}${mk ? `<span class="rp-mark ${r.tp_dir === "상향" ? "up" : "dn"}">${mk.trim()} ${r.tp_dir}</span>` : ""}</div>
@@ -429,7 +434,14 @@
         <div class="rb-item-main"><div class="dsc-top">${r.pblntf_ty_label ? `<span class="dsc-ty">${esc(r.pblntf_ty_label)}</span>` : ""}</div>
         <div class="rb-item-title">${esc(r.report_nm)}${r.rm ? ` <span class="dsc-rm">${esc(r.rm)}</span>` : ""}</div></div>
         <div class="rb-item-meta"><span class="rb-date">${r.rcept_dt ? fmtDate(r.rcept_dt) : ""}</span></div></a>`).join("")}` : "";
-    box.innerHTML = head + (reps || discs ? reps + discs : `<div class="rb-empty" style="padding:30px">📭<div>이 종목의 리포트·공시가 아직 없습니다.</div></div>`);
+    // 📰 뉴스
+    const newsSec = (d.news && d.news.length) ? `<div class="sk-sec">📰 뉴스 <span class="rb-count">${d.news.length}</span></div>
+      ${d.news.map((n) => `<a class="rb-item" href="${esc(n.url)}" target="_blank" rel="noopener">
+        <div class="rb-item-main"><div class="rb-item-title">${esc(n.title || "")}</div></div>
+        <div class="rb-item-meta">${n.source ? `<span class="rb-badge">${esc(n.source)}</span>` : ""}${n.published_at ? `<span class="rb-date">${fmtDate(n.published_at)}</span>` : ""}</div></a>`).join("")}` : "";
+    const body = ours + reps + discs + newsSec;
+    box.innerHTML = head + (body || `<div class="rb-empty" style="padding:30px">📭<div>이 종목의 리서치·리포트·공시가 아직 없습니다.</div></div>`);
+    box.querySelectorAll(".sk-note").forEach((el) => el.onclick = () => openReader(+el.dataset.id));
     $("#skBack").onclick = () => { skstate.sel = null; skSearch(); };
   }
 

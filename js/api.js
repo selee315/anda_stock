@@ -286,14 +286,23 @@ window.API = (() => {
   async function stockDetail(code, name) {
     const sb = window.SB.client();
     if (!sb) throw new Error("Supabase 미연결");
-    const [cons, reps, discs, kis] = await Promise.all([
+    const nameEsc = (name || "").replace(/[%,()]/g, " ").trim();
+    const [cons, reps, discs, kis, notes, news] = await Promise.all([
       sb.from("consensus").select("*").eq("stock_code", code).maybeSingle(),
       sb.from("reports").select("rpt_id,report_date,house,analyst,opinion,target_price,tp_dir,title,url,summary")
         .or(`stock_code.eq.${code}${name ? `,stock_name.eq.${name}` : ""}`).order("report_date", { ascending: false }).order("rpt_id", { ascending: false }).limit(20),
       sb.from("disclosures").select("rcept_no,report_nm,pblntf_ty_label,rcept_dt,url,rm").eq("stock_code", code).order("rcept_dt", { ascending: false }).limit(20),
       sb.from("stock_quotes").select("*").eq("stock_code", code).maybeSingle(),
+      // 사내 리서치(우리 노트) — 회사명이 소속(parent_title)이거나 제목에 들어간 노트
+      nameEsc ? sb.from("research_notes").select("id,title,source_db,meeting_date,summary,parent_title")
+        .or(`parent_title.eq.${nameEsc},title.ilike.%${nameEsc}%`)
+        .order("meeting_date", { ascending: false, nullsFirst: false }).limit(15) : Promise.resolve({ data: [] }),
+      // 뉴스 — 제목에 회사명
+      nameEsc ? sb.from("news").select("title,url,source,published_at")
+        .ilike("title", `%${nameEsc}%`).order("published_at", { ascending: false, nullsFirst: false }).limit(10) : Promise.resolve({ data: [] }),
     ]);
-    return { consensus: cons.data || null, reports: reps.data || [], disclosures: discs.data || [], kis: kis.data || null };
+    return { consensus: cons.data || null, reports: reps.data || [], disclosures: discs.data || [],
+             kis: kis.data || null, notes: notes.data || [], news: news.data || [] };
   }
 
   return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, stockSearch, stockDetail, PAGE };
