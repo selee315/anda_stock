@@ -3,16 +3,16 @@
    ═══════════════════════════════════════════════════════════ */
 :root, [data-theme="light"] {
   --bg: #f7f8f9; --card: #ffffff; --card2: #f1f2f4; --sidebar: #fbfbfc; --ink: #181a1f; --dim: #646a73;
-  --faint: #9ba1aa; --line: #e9eaed; --line2: #f2f3f5; --accent: #1a8a4d; --accent-d: #15753f;
-  --soft: #ecf5f0; --up: #0e9e5a; --down: #df453c; --navy: #0f5a34;
+  --faint: #9ba1aa; --line: #e9eaed; --line2: #f2f3f5; --accent: #4f46e5; --accent-d: #4338ca;
+  --soft: #eef0fb; --up: #0e9e5a; --down: #df453c; --navy: #312e81;
   --shadow: 0 1px 2px rgba(20,24,31,.04), 0 8px 24px -14px rgba(20,24,31,.10);
   --shadow-hover: 0 1px 2px rgba(20,24,31,.05), 0 16px 34px -16px rgba(20,24,31,.16);
   --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", "Noto Sans KR", sans-serif;
 }
 [data-theme="dark"] {
   --bg: #0e0f12; --card: #16181c; --card2: #1c1f25; --sidebar: #121317; --ink: #e8eaee; --dim: #969ca5;
-  --faint: #626873; --line: #24272e; --line2: #1b1e23; --accent: #31b567; --accent-d: #45cf7c;
-  --soft: #172420; --up: #31b567; --down: #e2554e; --navy: #0e3a22;
+  --faint: #626873; --line: #24272e; --line2: #1b1e23; --accent: #818cf8; --accent-d: #a5b4fc;
+  --soft: #1e1b3a; --up: #31b567; --down: #e2554e; --navy: #312e81;
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.5);
   --shadow-hover: 0 1px 2px rgba(0,0,0,.45), 0 16px 34px -16px rgba(0,0,0,.6);
 }
@@ -367,18 +367,18 @@ button { font-family: inherit; cursor: pointer; }
 .sk-m-v { line-height: 1.25; }
 
 /* AI 답변 내 사내노트 출처 링크 */
-.ai-a .ai-cite{color:var(--accent,#1a8a4d);font-weight:600;text-decoration:none;border-bottom:1px dashed currentColor;cursor:pointer}
+.ai-a .ai-cite{color:var(--accent,#4f46e5);font-weight:600;text-decoration:none;border-bottom:1px dashed currentColor;cursor:pointer}
 .ai-a .ai-cite:hover{background:rgba(26,138,77,.1);border-radius:3px}
 
 /* ── 홈 3기둥 대시보드 ── */
 .pillar-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0 26px}
 .pillar-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;padding:20px 18px;border:1px solid var(--line);border-radius:14px;background:var(--card);cursor:pointer;transition:transform .12s,box-shadow .12s,border-color .12s;box-shadow:var(--shadow)}
-.pillar-card:hover{transform:translateY(-3px);border-color:var(--accent,#1a8a4d);box-shadow:0 8px 22px rgba(0,0,0,.09)}
-.pillar-ic{width:34px;height:34px;color:var(--accent,#1a8a4d)}
+.pillar-card:hover{transform:translateY(-3px);border-color:var(--accent,#4f46e5);box-shadow:0 8px 22px rgba(0,0,0,.09)}
+.pillar-ic{width:34px;height:34px;color:var(--accent,#4f46e5)}
 .pillar-ic svg{width:34px;height:34px}
 .pillar-name{font-size:17px;font-weight:800;color:var(--ink)}
 .pillar-desc{font-size:12.5px;color:var(--muted);line-height:1.55;flex:1}
-.pillar-go{font-size:12.5px;font-weight:700;color:var(--accent,#1a8a4d);margin-top:4px}
+.pillar-go{font-size:12.5px;font-weight:700;color:var(--accent,#4f46e5);margin-top:4px}
 .home-feed{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden;margin-bottom:26px;box-shadow:var(--shadow)}
 .hf-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:none;border-left:0;border-right:0;border-top:0;cursor:pointer;text-align:left;width:100%}
 .hf-item:last-child{border-bottom:0}
