@@ -3,16 +3,16 @@
    ═══════════════════════════════════════════════════════════ */
 :root, [data-theme="light"] {
   --bg: #f7f8f9; --card: #ffffff; --card2: #f1f2f4; --sidebar: #fbfbfc; --ink: #181a1f; --dim: #646a73;
-  --faint: #9ba1aa; --line: #e9eaed; --line2: #f2f3f5; --accent: #4f46e5; --accent-d: #4338ca;
-  --soft: #eef0fb; --up: #0e9e5a; --down: #df453c; --navy: #312e81;
+  --faint: #9ba1aa; --line: #e9eaed; --line2: #f2f3f5; --accent: #18181b; --accent-d: #000000; --on-accent: #ffffff;
+  --soft: #f2f3f5; --up: #0e9e5a; --down: #df453c; --navy: #18181b;
   --shadow: 0 1px 2px rgba(20,24,31,.04), 0 8px 24px -14px rgba(20,24,31,.10);
   --shadow-hover: 0 1px 2px rgba(20,24,31,.05), 0 16px 34px -16px rgba(20,24,31,.16);
   --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", "Noto Sans KR", sans-serif;
 }
 [data-theme="dark"] {
   --bg: #0e0f12; --card: #16181c; --card2: #1c1f25; --sidebar: #121317; --ink: #e8eaee; --dim: #969ca5;
-  --faint: #626873; --line: #24272e; --line2: #1b1e23; --accent: #818cf8; --accent-d: #a5b4fc;
-  --soft: #1e1b3a; --up: #31b567; --down: #e2554e; --navy: #312e81;
+  --faint: #626873; --line: #24272e; --line2: #1b1e23; --accent: #fafafa; --accent-d: #ffffff; --on-accent: #18181b;
+  --soft: #27272a; --up: #31b567; --down: #e2554e; --navy: #fafafa;
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.5);
   --shadow-hover: 0 1px 2px rgba(0,0,0,.45), 0 16px 34px -16px rgba(0,0,0,.6);
 }
@@ -36,7 +36,7 @@ button { font-family: inherit; cursor: pointer; }
 .loginbox { width: 100%; max-width: 372px; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px 26px; box-shadow: var(--shadow); }
 .loginbox input { width: 100%; margin: 6px 0; background: var(--card2); border: 1px solid transparent; border-radius: 12px; padding: 13px 16px; color: var(--ink); font-size: 14.5px; outline: none; transition: .15s; }
 .loginbox input:focus { border-color: var(--accent); background: var(--card); box-shadow: 0 0 0 3px var(--soft); }
-.gold { width: 100%; margin-top: 12px; padding: 13px 0; background: var(--accent); color: #fff; border: 0; border-radius: 12px; font-weight: 700; font-size: 14.5px; transition: .15s; }
+.gold { width: 100%; margin-top: 12px; padding: 13px 0; background: var(--accent); color: var(--on-accent); border: 0; border-radius: 12px; font-weight: 700; font-size: 14.5px; transition: .15s; }
 .gold:hover { background: var(--accent-d); }
 .gold:disabled { opacity: .6; }
 #err { color: var(--down); font-size: 12px; margin-top: 10px; min-height: 16px; text-align: center; }
@@ -52,7 +52,7 @@ button { font-family: inherit; cursor: pointer; }
 .shell { display: grid; grid-template-columns: 236px 1fr; height: 100dvh; }
 .sidebar { display: flex; flex-direction: column; background: var(--sidebar); border-right: 1px solid var(--line); min-height: 0; }
 .sb-brand { display: flex; align-items: center; gap: 10px; padding: 15px 16px; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); }
-.sb-logo { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; background: var(--accent); color: #fff; }
+.sb-logo { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; background: var(--accent); color: var(--on-accent); }
 .sb-logo .ic { width: 17px; height: 17px; }
 .sb-brand-t { font-size: 15px; font-weight: 800; letter-spacing: -.02em; }
 .sb-nav { flex: 1; overflow-y: auto; padding: 8px 10px; scrollbar-width: thin; }
@@ -121,7 +121,7 @@ button { font-family: inherit; cursor: pointer; }
 .rb-tabs { display: flex; gap: 8px; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--line); overflow-x: auto; }
 .rb-tab { white-space: nowrap; background: transparent; border: 1px solid var(--line); color: var(--dim); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; }
 .rb-tab:hover { color: var(--ink); }
-.rb-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rb-tab.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .rb-count { font-size: 11px; opacity: .7; margin-left: 3px; }
 
 .rb-list { flex: 1; overflow-y: auto; padding: 8px 20px 40px; }
