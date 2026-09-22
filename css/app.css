@@ -411,3 +411,37 @@ button { font-family: inherit; cursor: pointer; }
 .ck-brief-txt{color:var(--dim);line-height:1.6}
 .ck-empty{color:var(--faint);padding:8px 0;font-size:12px}
 @media(max-width:860px){.cockpit-grid{grid-template-columns:1fr}}
+
+/* ═══ 홈 대시보드 재설계 (전문 톤) ═══ */
+.home{padding:26px 30px 60px}
+.home-hero{max-width:1200px;margin:0 auto 18px}
+.home-cap{font-size:10px;letter-spacing:.28em;color:var(--faint);font-weight:700}
+.home-hero h1{font-size:22px;font-weight:800;margin:6px 0 0;letter-spacing:-.03em}
+.home-hero p{display:none}
+.pillar-grid{max-width:1200px;margin:0 auto 22px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pillar-card{display:flex;align-items:center;gap:12px;text-align:left;padding:13px 16px;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer;transition:border-color .12s,background .12s;box-shadow:none}
+.pillar-card:hover{border-color:var(--accent);background:var(--card2);transform:none}
+.pillar-ic{width:22px;height:22px;color:var(--accent);flex:0 0 auto}
+.pillar-ic svg{width:22px;height:22px}
+.pillar-tx{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0}
+.pillar-name{font-size:14px;font-weight:700;color:var(--ink)}
+.pillar-desc{font-size:11.5px;color:var(--dim)}
+.pillar-arw{color:var(--faint);font-size:15px;flex:0 0 auto}
+.dash-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1.9fr 1fr;gap:16px;align-items:start}
+.dash-side{display:flex;flex-direction:column;gap:16px}
+.panel-label{font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--dim);text-transform:uppercase;margin-bottom:9px;display:flex;align-items:center}
+.panel-sub{font-weight:600;color:var(--faint);margin-left:8px;text-transform:none;letter-spacing:0;font-size:11px}
+.panel-more{margin-left:auto;font-size:11px;font-weight:600;color:var(--accent-d);background:none;border:0;cursor:pointer;text-transform:none;letter-spacing:0}
+.panel-more:hover{text-decoration:underline}
+.si-now{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:16px 18px;font-size:13px;line-height:1.78;color:var(--ink);white-space:pre-wrap;word-break:break-word;cursor:pointer;max-height:540px;overflow-y:auto}
+.si-now:hover{border-color:var(--accent)}
+.si-news{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.si-news-item{display:flex;flex-direction:column;gap:2px;padding:11px 15px;border-bottom:1px solid var(--line2);text-decoration:none}
+.si-news-item:last-child{border-bottom:0}
+.si-news-item:hover{background:var(--card2)}
+.si-news-t{font-size:13px;font-weight:600;color:var(--ink);line-height:1.45}
+.si-news-m{font-size:11px;color:var(--faint)}
+.panel-body{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:5px 14px}
+.panel-body .hf-item{padding:8px 0}
+.panel-body .ck-row{padding:7px 0}
+@media(max-width:960px){.dash-grid{grid-template-columns:1fr}.pillar-grid{grid-template-columns:1fr}}

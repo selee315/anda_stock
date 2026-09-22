@@ -443,8 +443,8 @@
         <div class="rb-item-main"><div class="dsc-top">${r.pblntf_ty_label ? `<span class="dsc-ty">${esc(r.pblntf_ty_label)}</span>` : ""}</div>
         <div class="rb-item-title">${esc(r.report_nm)}${r.rm ? ` <span class="dsc-rm">${esc(r.rm)}</span>` : ""}</div></div>
         <div class="rb-item-meta"><span class="rb-date">${r.rcept_dt ? fmtDate(r.rcept_dt) : ""}</span></div></a>`).join("")}` : "";
-    // 📰 뉴스
-    const newsSec = (d.news && d.news.length) ? `<div class="sk-sec">📰 뉴스 <span class="rb-count">${d.news.length}</span></div>
+    // 뉴스
+    const newsSec = (d.news && d.news.length) ? `<div class="sk-sec">뉴스 <span class="rb-count">${d.news.length}</span></div>
       ${d.news.map((n) => `<a class="rb-item" href="${esc(n.url)}" target="_blank" rel="noopener">
         <div class="rb-item-main"><div class="rb-item-title">${esc(n.title || "")}</div></div>
         <div class="rb-item-meta">${n.source ? `<span class="rb-badge">${esc(n.source)}</span>` : ""}${n.published_at ? `<span class="rb-date">${fmtDate(n.published_at)}</span>` : ""}</div></a>`).join("")}` : "";
@@ -775,7 +775,7 @@
     v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">시황 피드</div>
       <div class="ai-sub" style="margin-left:auto">텔레그램 시황요약 · 뉴스 (X 콘텐츠는 텔레그램에 포함)</div></div>
       <div class="rb-tabs" id="fdtabs"></div><main class="rb-list" id="fdbody"></main></div>`;
-    const tabs = [["tg", "📡 텔레그램 시황"], ["news", "📰 뉴스"]];
+    const tabs = [["tg", "텔레그램 시황"], ["news", "뉴스"]];
     $("#fdtabs").innerHTML = tabs.map(([k, l]) => `<button class="rb-tab${feedState.tab === k ? " active" : ""}" data-t="${k}">${l}</button>`).join("");
     $("#fdtabs").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { feedState.tab = b.dataset.t; renderFeed(v); });
     feedState.page = 0; feedState.hasMore = true; $("#fdbody").innerHTML = "";
@@ -796,7 +796,7 @@
           const t = new Date(r.ts);
           const tm = isNaN(t) ? String(r.ts).slice(0, 16) : `${t.getMonth() + 1}/${t.getDate()} ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
           const d = el("div", "fd-tg");
-          d.innerHTML = `<div class="fd-tg-time">🕐 ${tm}${r.channels ? ` · ${r.channels}개 방` : ""}</div><div class="fd-tg-body">${esc(r.body || "")}</div>`;
+          d.innerHTML = `<div class="fd-tg-time">${tm}${r.channels ? ` · ${r.channels}개 방` : ""}</div><div class="fd-tg-body">${esc(r.body || "")}</div>`;
           box.appendChild(d);
         }
         feedState.page++; feedState.hasMore = hasMore;
@@ -879,86 +879,95 @@
   }
 
   const HOME_PILLARS = [
-    { id: "research", emoji: "📚", name: "자료 데이터베이스", desc: "노션 사내 리서치 — 회의록·기업탐방·세미나·모닝브리핑·Spot 전체를 검색·열람" },
-    { id: "ai", emoji: "🤖", name: "AI 리서치 비서", desc: "사내자료·리포트·텔레그램·이메일·컨센·공시를 종합해 객관적으로 답하는 우리만의 비서" },
-    { id: "stock", emoji: "🏢", name: "기업 검색", desc: "한 종목 = 시세·컨센서스·리포트·공시·우리 리서치·뉴스를 한 화면에" },
+    { id: "research", name: "자료 데이터베이스", short: "노션 사내 리서치 전체 검색·열람" },
+    { id: "ai", name: "AI 리서치 비서", short: "전 소스 종합 질의응답" },
+    { id: "stock", name: "기업 검색", short: "종목 통합 뷰" },
   ];
   function renderHome(v) {
-    const pillarIds = HOME_PILLARS.map((p) => p.id);
-    const others = SECTIONS.filter((s) => !pillarIds.includes(s.id));
     v.innerHTML = `
       <div class="home">
         <div class="home-hero">
-          <div class="home-cap">ANDA ASSET · 리서치 포털</div>
-          <h1>안다 리서치 포털</h1>
-          <p>우리 리서치 자료 · AI 비서 · 기업 데이터를 한 곳에서.</p>
+          <div class="home-cap">ANDA ASSET MANAGEMENT</div>
+          <h1>리서치 포털</h1>
         </div>
         <div class="pillar-grid">
           ${HOME_PILLARS.map((p) => `
             <button class="pillar-card" data-id="${p.id}">
-              <div class="pillar-ic">${svg(p.id)}</div>
-              <div class="pillar-name">${p.emoji} ${esc(p.name)}</div>
-              <div class="pillar-desc">${esc(p.desc)}</div>
-              <div class="pillar-go">바로가기 →</div>
+              <span class="pillar-ic">${svg(p.id)}</span>
+              <span class="pillar-tx"><span class="pillar-name">${esc(p.name)}</span><span class="pillar-desc">${esc(p.short)}</span></span>
+              <span class="pillar-arw">→</span>
             </button>`).join("")}
         </div>
-        <div class="home-cat">📊 오늘의 콕핏</div>
-        <div class="cockpit-grid">
-          <button class="ck-card" data-go="briefs"><div class="ck-h">🌅 오늘의 브리핑</div><div id="ckBrief" class="ck-body"><div class="rb-spin">…</div></div></button>
-          <button class="ck-card" data-go="tpchanges"><div class="ck-h">🎯 목표주가 변동</div><div id="ckTp" class="ck-body"><div class="rb-spin">…</div></div></button>
-          <button class="ck-card" data-go="disclosure"><div class="ck-h">📑 최근 공시</div><div id="ckDisc" class="ck-body"><div class="rb-spin">…</div></div></button>
-        </div>
-        <div class="home-cat">📌 최근 사내 리서치</div>
-        <div id="homeFeed" class="home-feed"><div class="rb-spin">불러오는 중…</div></div>
-        <div class="home-cat">전체 메뉴</div>
-        <div class="home-grid">
-          ${others.map((s) => `
-            <button class="sec-card${s.ready ? "" : " off"}" data-id="${s.id}" ${s.ready ? "" : "disabled"}>
-              <div class="sec-ic">${svg(s.id)}</div>
-              <div class="sec-body">
-                <div class="sec-name">${esc(s.name)}${s.ready ? "" : ' <span class="sec-soon">준비중</span>'}</div>
-                <div class="sec-desc">${esc(s.desc)}</div>
-              </div>
-            </button>`).join("")}
+        <div class="dash-grid">
+          <section class="dash-main">
+            <div class="panel-label">지금 시황 <span class="panel-sub" id="siTime"></span></div>
+            <div id="siNow" class="si-now"><div class="rb-spin">불러오는 중…</div></div>
+            <div class="panel-label" style="margin-top:22px">주요 뉴스</div>
+            <div id="siNews" class="si-news"><div class="rb-spin">…</div></div>
+          </section>
+          <aside class="dash-side">
+            <div class="panel">
+              <div class="panel-label">목표주가 변동 <button class="panel-more" data-go="tpchanges">전체</button></div>
+              <div id="ckTp" class="panel-body"><div class="rb-spin">…</div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-label">최근 공시 <button class="panel-more" data-go="disclosure">전체</button></div>
+              <div id="ckDisc" class="panel-body"><div class="rb-spin">…</div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-label">최근 사내 리서치 <button class="panel-more" data-go="research">전체</button></div>
+              <div id="homeFeed" class="panel-body"><div class="rb-spin">…</div></div>
+            </div>
+          </aside>
         </div>
       </div>`;
     v.querySelectorAll(".pillar-card").forEach((c) => c.onclick = () => go(c.dataset.id));
-    v.querySelectorAll(".sec-card").forEach((c) => { if (!c.disabled) c.onclick = () => go(c.dataset.id); });
-    // 최근 사내 리서치 피드 (홈에서 바로)
-    window.API.list({ page: 0 }).then(({ rows }) => {
-      const feed = $("#homeFeed"); if (!feed) return;
-      const items = (rows || []).slice(0, 6);
-      feed.innerHTML = items.length ? items.map((n) => `
-        <button class="hf-item" data-id="${n.id}">
-          <span class="hf-title">${esc(n.title || "(제목 없음)")}</span>
-          <span class="hf-meta">${n.source_db ? `<span class="rb-badge">${esc(n.source_db)}</span>` : ""}${n.meeting_date ? fmtDate(n.meeting_date) : ""}</span>
-        </button>`).join("") : `<div class="rb-empty-t" style="padding:14px">최근 노트가 없습니다.</div>`;
-      feed.querySelectorAll(".hf-item").forEach((el) => el.onclick = () => openReader(+el.dataset.id));
-    }).catch(() => { const feed = $("#homeFeed"); if (feed) feed.innerHTML = ""; });
-    // 콕핏 카드 클릭 → 해당 섹션
-    v.querySelectorAll(".ck-card").forEach((c) => c.onclick = () => go(c.dataset.go));
-    // 콕핏: 오늘의 브리핑
-    window.API.briefs("morning").then((rows) => {
-      const box = $("#ckBrief"); if (!box) return;
-      const b = (rows || [])[0];
-      if (!b) { box.innerHTML = `<div class="ck-empty">브리핑 없음</div>`; return; }
-      const snip = (b.body || "").replace(/[#*>`|]/g, " ").replace(/\s+/g, " ").trim().slice(0, 150);
-      box.innerHTML = `<div class="ck-brief-date">${esc(b.brief_date)}</div><div class="ck-brief-txt">${esc(snip)}…</div>`;
+    v.querySelectorAll(".panel-more").forEach((b) => b.onclick = (e) => { e.stopPropagation(); go(b.dataset.go); });
+    const won = (n) => n == null ? "" : Number(n).toLocaleString("ko-KR");
+    // 지금 시황 — 최신 텔레그램 요약
+    window.API.tgFeed(0).then(({ rows }) => {
+      const box = $("#siNow"); if (!box) return;
+      const d = (rows || [])[0];
+      if (!d) { box.innerHTML = `<div class="ck-empty">시황 요약이 아직 없습니다.</div>`; return; }
+      const t = new Date(d.ts);
+      const tm = isNaN(t) ? String(d.ts).slice(0, 16) : `${t.getMonth() + 1}/${t.getDate()} ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+      const tl = $("#siTime"); if (tl) tl.textContent = tm + (d.channels ? ` · ${d.channels}개 방` : "");
+      box.textContent = d.body || "";
+      box.onclick = () => go("feed");
     }).catch(() => {});
-    // 콕핏: 목표주가 변동
+    // 주요 뉴스
+    window.API.news({ page: 0 }).then(({ rows }) => {
+      const box = $("#siNews"); if (!box) return;
+      const items = (rows || []).slice(0, 7);
+      box.innerHTML = items.length ? items.map((r) => `
+        <a class="si-news-item" href="${esc(r.url)}" target="_blank" rel="noopener">
+          <span class="si-news-t">${esc(r.title || "")}</span>
+          <span class="si-news-m">${r.source ? esc(r.source) : ""}${r.published_at ? " · " + fmtDate(r.published_at) : ""}</span>
+        </a>`).join("") : `<div class="ck-empty">뉴스가 없습니다.</div>`;
+    }).catch(() => {});
+    // 목표주가 변동
     window.API.tpChanges(null, 0).then(({ rows }) => {
       const box = $("#ckTp"); if (!box) return;
-      const items = (rows || []).slice(0, 6);
+      const items = (rows || []).slice(0, 7);
       box.innerHTML = items.length ? items.map((r) => {
         const up = r.tp_dir === "상향";
-        return `<div class="ck-row"><span class="tp-mk ${up ? "u-up" : "u-dn"}">${up ? "▲" : "▼"}</span><span class="ck-row-name">${esc(r.stock_name || "")}</span><span class="ck-row-v ${up ? "u-up" : "u-dn"}">${r.target_price ? Number(r.target_price).toLocaleString("ko-KR") : ""}</span></div>`;
+        return `<div class="ck-row"><span class="tp-mk ${up ? "u-up" : "u-dn"}">${up ? "▲" : "▼"}</span><span class="ck-row-name">${esc(r.stock_name || "")}</span><span class="ck-row-v ${up ? "u-up" : "u-dn"}">${won(r.target_price)}</span></div>`;
       }).join("") : `<div class="ck-empty">변동 없음</div>`;
     }).catch(() => {});
-    // 콕핏: 최근 공시
+    // 최근 공시
     window.API.disclosures({ page: 0 }).then(({ rows }) => {
       const box = $("#ckDisc"); if (!box) return;
-      const items = (rows || []).slice(0, 6);
-      box.innerHTML = items.length ? items.map((r) => `<div class="ck-row"><span class="ck-row-name">${esc(r.corp_name || "")}</span><span class="ck-row-sub">${esc((r.report_nm || "").slice(0, 22))}</span></div>`).join("") : `<div class="ck-empty">공시 없음</div>`;
+      const items = (rows || []).slice(0, 7);
+      box.innerHTML = items.length ? items.map((r) => `<div class="ck-row"><span class="ck-row-name">${esc(r.corp_name || "")}</span><span class="ck-row-sub">${esc((r.report_nm || "").slice(0, 20))}</span></div>`).join("") : `<div class="ck-empty">공시 없음</div>`;
+    }).catch(() => {});
+    // 최근 사내 리서치
+    window.API.list({ page: 0 }).then(({ rows }) => {
+      const feed = $("#homeFeed"); if (!feed) return;
+      const items = (rows || []).slice(0, 7);
+      feed.innerHTML = items.length ? items.map((n) => `
+        <button class="hf-item" data-id="${n.id}"><span class="hf-title">${esc(n.title || "(제목 없음)")}</span>
+        <span class="hf-meta">${n.meeting_date ? fmtDate(n.meeting_date) : ""}</span></button>`).join("") : `<div class="ck-empty">최근 노트 없음</div>`;
+      feed.querySelectorAll(".hf-item").forEach((el) => el.onclick = () => openReader(+el.dataset.id));
     }).catch(() => {});
   }
 
