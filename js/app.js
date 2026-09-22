@@ -902,6 +902,12 @@
               <div class="pillar-go">바로가기 →</div>
             </button>`).join("")}
         </div>
+        <div class="home-cat">📊 오늘의 콕핏</div>
+        <div class="cockpit-grid">
+          <button class="ck-card" data-go="briefs"><div class="ck-h">🌅 오늘의 브리핑</div><div id="ckBrief" class="ck-body"><div class="rb-spin">…</div></div></button>
+          <button class="ck-card" data-go="tpchanges"><div class="ck-h">🎯 목표주가 변동</div><div id="ckTp" class="ck-body"><div class="rb-spin">…</div></div></button>
+          <button class="ck-card" data-go="disclosure"><div class="ck-h">📑 최근 공시</div><div id="ckDisc" class="ck-body"><div class="rb-spin">…</div></div></button>
+        </div>
         <div class="home-cat">📌 최근 사내 리서치</div>
         <div id="homeFeed" class="home-feed"><div class="rb-spin">불러오는 중…</div></div>
         <div class="home-cat">전체 메뉴</div>
@@ -929,6 +935,31 @@
         </button>`).join("") : `<div class="rb-empty-t" style="padding:14px">최근 노트가 없습니다.</div>`;
       feed.querySelectorAll(".hf-item").forEach((el) => el.onclick = () => openReader(+el.dataset.id));
     }).catch(() => { const feed = $("#homeFeed"); if (feed) feed.innerHTML = ""; });
+    // 콕핏 카드 클릭 → 해당 섹션
+    v.querySelectorAll(".ck-card").forEach((c) => c.onclick = () => go(c.dataset.go));
+    // 콕핏: 오늘의 브리핑
+    window.API.briefs("morning").then((rows) => {
+      const box = $("#ckBrief"); if (!box) return;
+      const b = (rows || [])[0];
+      if (!b) { box.innerHTML = `<div class="ck-empty">브리핑 없음</div>`; return; }
+      const snip = (b.body || "").replace(/[#*>`|]/g, " ").replace(/\s+/g, " ").trim().slice(0, 150);
+      box.innerHTML = `<div class="ck-brief-date">${esc(b.brief_date)}</div><div class="ck-brief-txt">${esc(snip)}…</div>`;
+    }).catch(() => {});
+    // 콕핏: 목표주가 변동
+    window.API.tpChanges(null, 0).then(({ rows }) => {
+      const box = $("#ckTp"); if (!box) return;
+      const items = (rows || []).slice(0, 6);
+      box.innerHTML = items.length ? items.map((r) => {
+        const up = r.tp_dir === "상향";
+        return `<div class="ck-row"><span class="tp-mk ${up ? "u-up" : "u-dn"}">${up ? "▲" : "▼"}</span><span class="ck-row-name">${esc(r.stock_name || "")}</span><span class="ck-row-v ${up ? "u-up" : "u-dn"}">${r.target_price ? Number(r.target_price).toLocaleString("ko-KR") : ""}</span></div>`;
+      }).join("") : `<div class="ck-empty">변동 없음</div>`;
+    }).catch(() => {});
+    // 콕핏: 최근 공시
+    window.API.disclosures({ page: 0 }).then(({ rows }) => {
+      const box = $("#ckDisc"); if (!box) return;
+      const items = (rows || []).slice(0, 6);
+      box.innerHTML = items.length ? items.map((r) => `<div class="ck-row"><span class="ck-row-name">${esc(r.corp_name || "")}</span><span class="ck-row-sub">${esc((r.report_nm || "").slice(0, 22))}</span></div>`).join("") : `<div class="ck-empty">공시 없음</div>`;
+    }).catch(() => {});
   }
 
   // ── 사내 리서치 자료 (브라우저) ──
