@@ -254,7 +254,7 @@ window.API = (() => {
   async function news({ source = null, page = 0 } = {}) {
     const sb = window.SB.client();
     if (!sb) throw new Error("Supabase 미연결");
-    let query = sb.from("news").select("id,source,title,url,published_at,summary");
+    let query = sb.from("news").select("source,title,url,published_at,summary");
     if (source) query = query.eq("source", source);
     query = query.order("published_at", { ascending: false, nullsFirst: false }).range(page * PAGE, page * PAGE + PAGE - 1);
     const { data, error } = await query;
