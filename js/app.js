@@ -19,6 +19,7 @@
     home: '<path d="M3 9.5 12 3l9 6.5"/><path d="M5 8.5V21h14V8.5"/>',
     research: '<path d="M12 7v13"/><path d="M3 5.5A1.5 1.5 0 0 1 4.5 4H9a3 3 0 0 1 3 3 3 3 0 0 1 3-3h4.5A1.5 1.5 0 0 1 21 5.5V18a1 1 0 0 1-1 1h-6a2 2 0 0 0-2 2 2 2 0 0 0-2-2H4a1 1 0 0 1-1-1z"/>',
     reports: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
+    briefs: '<path d="M3 11l18-5v13L3 14z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
     ai: '<path d="M9 4 10.3 8 14 9l-3.7 1L9 14l-1.3-4L4 9l3.7-1z"/><path d="M17 13l.8 2.2L20 16l-2.2.8L17 19l-.8-2.2L14 16l2.2-.8z"/>',
     stock: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>',
     consensus: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
@@ -80,6 +81,7 @@
     { id: "research", cat: "리서치", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot Comment 전체 검색·열람", ready: true, big: true },
     { id: "reports", cat: "리서치", icon: "📄", name: "리서치 리포트", desc: "증권사 리포트·목표주가 변동 (FnGuide)", ready: true },
     { id: "ai", cat: "리서치", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
+    { id: "briefs", cat: "리서치", icon: "📋", name: "브리핑", desc: "아침 브리핑·오늘의 리서치·장마감·리서치콜 (매일 자동 생성)", ready: true },
     { id: "stock", cat: "종목·컨센서스", icon: "🔎", name: "종목 검색", desc: "종목 하나로 현재가·컨센서스·리포트·공시 통합 조회", ready: true },
     { id: "consensus", cat: "종목·컨센서스", icon: "🔮", name: "컨센서스", desc: "증권사 목표주가·투자의견 집계 (FnGuide)", ready: true },
     { id: "disclosure", cat: "종목·컨센서스", icon: "📑", name: "국내 공시", desc: "코스피·코스닥 DART 공시 실시간 피드", ready: true },
@@ -187,6 +189,7 @@
     if (state.view === "dividend") return renderDividend(v);
     if (state.view === "flows") return renderFlows(v);
     if (state.view === "news") return renderNews(v);
+    if (state.view === "briefs") return renderBriefs(v);
     if (state.view === "ai") return renderAI(v);
     return renderHome(v);
   }
@@ -760,6 +763,41 @@
   }
 
   // ── 홈 ──
+  // ── 브리핑 (아침·장마감·리서치콜·오늘의 리서치) ──
+  const briefState = { type: null, sel: null };
+  const BRIEF_TYPES = [[null, "전체"], ["morning", "아침 브리핑"], ["daily_reports", "오늘의 리서치"], ["closing", "장마감"], ["research_call", "리서치콜"]];
+  const BRIEF_LABEL = { morning: "아침 브리핑", daily_reports: "오늘의 리서치", closing: "장마감", research_call: "리서치콜" };
+  function renderBriefs(v) {
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">브리핑</div>
+      <div class="ai-sub" style="margin-left:auto">매일 자동 생성 · 노션 동기화</div></div>
+      <div class="rb-tabs" id="brtabs"></div><main class="rb-list" id="brbody"></main></div>`;
+    $("#brtabs").innerHTML = BRIEF_TYPES.map(([k, l]) => `<button class="rb-tab${briefState.type === k ? " active" : ""}" data-t="${k == null ? "" : k}">${l}</button>`).join("");
+    $("#brtabs").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { briefState.type = b.dataset.t || null; briefState.sel = null; renderBriefs(v); });
+    if (briefState.sel) brDetail(briefState.sel); else brList();
+  }
+  async function brList() {
+    const box = $("#brbody"); if (!box) return;
+    box.innerHTML = `<div class="rb-spin">불러오는 중…</div>`;
+    let rows; try { rows = await window.API.briefs(briefState.type); } catch (e) { box.innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
+    if (!rows.length) { box.innerHTML = `<div class="rb-empty">🗂️<div>브리핑이 아직 없습니다.</div></div>`; return; }
+    box.innerHTML = rows.map((r) => {
+      const snip = (r.body || "").replace(/[#*>`|]/g, " ").replace(/\s+/g, " ").trim().slice(0, 130);
+      return `<button class="rb-item br-item" data-id="${r.id}">
+        <div class="rb-item-main"><div class="rb-item-title">${esc(BRIEF_LABEL[r.brief_type] || r.brief_type)} <span class="rb-date">${esc(r.brief_date)}</span></div>
+        ${snip ? `<div class="rb-item-sum">${esc(snip)}</div>` : ""}</div>
+        <div class="rb-item-meta"><span class="rb-badge">${esc(BRIEF_LABEL[r.brief_type] || "")}</span></div></button>`;
+    }).join("");
+    box.querySelectorAll(".br-item").forEach((el) => el.onclick = () => { briefState.sel = rows.find((x) => String(x.id) === el.dataset.id); brDetail(briefState.sel); });
+  }
+  function brDetail(r) {
+    const box = $("#brbody"); if (!box || !r) return;
+    box.innerHTML = `<button class="co-back" id="brBack">← 목록</button>
+      ${r.notion_url ? `<div style="margin:6px 0 12px"><a href="${esc(r.notion_url)}" target="_blank" rel="noopener" class="reader-link">Notion 원문 ↗</a></div>` : ""}
+      <h1 class="reader-title">${esc(BRIEF_LABEL[r.brief_type] || r.brief_type)} · ${esc(r.brief_date)}</h1>
+      <div class="reader-body nt-content">${mdToHtml(r.body || "")}</div>`;
+    $("#brBack").onclick = () => { briefState.sel = null; brList(); };
+  }
+
   const HOME_PILLARS = [
     { id: "research", emoji: "📚", name: "자료 데이터베이스", desc: "노션 사내 리서치 — 회의록·기업탐방·세미나·모닝브리핑·Spot 전체를 검색·열람" },
     { id: "ai", emoji: "🤖", name: "AI 리서치 비서", desc: "사내자료·리포트·텔레그램·이메일·컨센·공시를 종합해 객관적으로 답하는 우리만의 비서" },

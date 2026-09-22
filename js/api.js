@@ -305,5 +305,16 @@ window.API = (() => {
              kis: kis.data || null, notes: notes.data || [], news: news.data || [] };
   }
 
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, stockSearch, stockDetail, PAGE };
+  // 브리핑(아침·장마감·리서치콜·오늘의 리서치) — briefs 테이블
+  async function briefs(type) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    let q = sb.from("briefs").select("id,brief_type,brief_date,title,body,notion_url")
+      .order("brief_date", { ascending: false }).order("id", { ascending: false }).limit(80);
+    if (type) q = q.eq("brief_type", type);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, stockSearch, stockDetail, briefs, PAGE };
 })();
