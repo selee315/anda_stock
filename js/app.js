@@ -20,6 +20,8 @@
     research: '<path d="M12 7v13"/><path d="M3 5.5A1.5 1.5 0 0 1 4.5 4H9a3 3 0 0 1 3 3 3 3 0 0 1 3-3h4.5A1.5 1.5 0 0 1 21 5.5V18a1 1 0 0 1-1 1h-6a2 2 0 0 0-2 2 2 2 0 0 0-2-2H4a1 1 0 0 1-1-1z"/>',
     reports: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
     briefs: '<path d="M3 11l18-5v13L3 14z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+    feed: '<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.5"/>',
+    tpchanges: '<path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/>',
     ai: '<path d="M9 4 10.3 8 14 9l-3.7 1L9 14l-1.3-4L4 9l3.7-1z"/><path d="M17 13l.8 2.2L20 16l-2.2.8L17 19l-.8-2.2L14 16l2.2-.8z"/>',
     stock: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>',
     consensus: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
@@ -84,10 +86,12 @@
     { id: "briefs", cat: "리서치", icon: "📋", name: "브리핑", desc: "아침 브리핑·오늘의 리서치·장마감·리서치콜 (매일 자동 생성)", ready: true },
     { id: "stock", cat: "종목·컨센서스", icon: "🔎", name: "종목 검색", desc: "종목 하나로 현재가·컨센서스·리포트·공시 통합 조회", ready: true },
     { id: "consensus", cat: "종목·컨센서스", icon: "🔮", name: "컨센서스", desc: "증권사 목표주가·투자의견 집계 (FnGuide)", ready: true },
+    { id: "tpchanges", cat: "종목·컨센서스", icon: "🎯", name: "목표주가 변동", desc: "이번 주 목표주가 상향▲·하향▼ 종목 (아이디어 발굴)", ready: true },
     { id: "disclosure", cat: "종목·컨센서스", icon: "📑", name: "국내 공시", desc: "코스피·코스닥 DART 공시 실시간 피드", ready: true },
     { id: "dividend", cat: "종목·컨센서스", icon: "💰", name: "배당주", desc: "고배당 ETF·배당 체크리스트 통과 종목 (Naver)", ready: true },
     { id: "flows", cat: "종목·컨센서스", icon: "💧", name: "수급", desc: "외국인·기관 투자자별 순매수 상위 (Naver)", ready: true },
     { id: "market", cat: "시장·매크로", icon: "📈", name: "시장 데이터", desc: "세계지수·환율·원자재 실시간(지연) 시세", ready: true },
+    { id: "feed", cat: "시장·매크로", icon: "📡", name: "시황 피드", desc: "텔레그램 시간별 시황 요약 + 뉴스 (장중 속보)", ready: true },
     { id: "movers", cat: "시장·매크로", icon: "🚀", name: "급등락", desc: "코스피·코스닥 상승률·하락률 상위 (Naver)", ready: true },
     { id: "sector", cat: "시장·매크로", icon: "💹", name: "섹터 수익률", desc: "KODEX 섹터 ETF 기준 섹터별 등락 (Naver)", ready: true },
     { id: "macro", cat: "시장·매크로", icon: "📐", name: "MACRO", desc: "미국 매크로 지표 — M2·CPI·금리·유동성 (FRED)", ready: true },
@@ -189,6 +193,8 @@
     if (state.view === "dividend") return renderDividend(v);
     if (state.view === "flows") return renderFlows(v);
     if (state.view === "news") return renderNews(v);
+    if (state.view === "feed") return renderFeed(v);
+    if (state.view === "tpchanges") return renderTpChanges(v);
     if (state.view === "briefs") return renderBriefs(v);
     if (state.view === "ai") return renderAI(v);
     return renderHome(v);
@@ -763,6 +769,80 @@
   }
 
   // ── 홈 ──
+  // ── 시황 피드 (텔레그램 시황요약 + 뉴스) ──
+  const feedState = { tab: "tg", page: 0, loading: false, hasMore: true };
+  function renderFeed(v) {
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">시황 피드</div>
+      <div class="ai-sub" style="margin-left:auto">텔레그램 시황요약 · 뉴스 (X 콘텐츠는 텔레그램에 포함)</div></div>
+      <div class="rb-tabs" id="fdtabs"></div><main class="rb-list" id="fdbody"></main></div>`;
+    const tabs = [["tg", "📡 텔레그램 시황"], ["news", "📰 뉴스"]];
+    $("#fdtabs").innerHTML = tabs.map(([k, l]) => `<button class="rb-tab${feedState.tab === k ? " active" : ""}" data-t="${k}">${l}</button>`).join("");
+    $("#fdtabs").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { feedState.tab = b.dataset.t; renderFeed(v); });
+    feedState.page = 0; feedState.hasMore = true; $("#fdbody").innerHTML = "";
+    fdLoad();
+    $("#fdbody").onscroll = () => { const m = $("#fdbody"); if (!feedState.loading && feedState.hasMore && m.scrollTop + m.clientHeight > m.scrollHeight - 300) fdLoad(); };
+  }
+  async function fdLoad() {
+    if (feedState.loading || !feedState.hasMore) return;
+    feedState.loading = true;
+    const box = $("#fdbody"); if (!box) { feedState.loading = false; return; }
+    const spin = el("div", "rb-spin", "불러오는 중…"); box.appendChild(spin);
+    try {
+      if (feedState.tab === "tg") {
+        const { rows, hasMore } = await window.API.tgFeed(feedState.page);
+        spin.remove();
+        if (feedState.page === 0 && !rows.length) box.innerHTML = `<div class="rb-empty">📡<div>시황 요약이 아직 없습니다.</div></div>`;
+        for (const r of rows) {
+          const t = new Date(r.ts);
+          const tm = isNaN(t) ? String(r.ts).slice(0, 16) : `${t.getMonth() + 1}/${t.getDate()} ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+          const d = el("div", "fd-tg");
+          d.innerHTML = `<div class="fd-tg-time">🕐 ${tm}${r.channels ? ` · ${r.channels}개 방` : ""}</div><div class="fd-tg-body">${esc(r.body || "")}</div>`;
+          box.appendChild(d);
+        }
+        feedState.page++; feedState.hasMore = hasMore;
+      } else {
+        const { rows, hasMore } = await window.API.news({ page: feedState.page });
+        spin.remove();
+        if (feedState.page === 0 && !rows.length) box.innerHTML = `<div class="rb-empty">📰<div>뉴스가 없습니다.</div></div>`;
+        for (const r of rows) {
+          const a = el("a", "rb-item"); a.href = r.url; a.target = "_blank"; a.rel = "noopener";
+          a.innerHTML = `<div class="rb-item-main"><div class="rb-item-title">${esc(r.title)}</div></div><div class="rb-item-meta">${r.source ? `<span class="rb-badge">${esc(r.source)}</span>` : ""}${r.published_at ? `<span class="rb-date">${fmtDate(r.published_at)}</span>` : ""}</div>`;
+          box.appendChild(a);
+        }
+        feedState.page++; feedState.hasMore = hasMore;
+      }
+    } catch (e) { spin.textContent = "불러오기 실패: " + e.message; }
+    finally { feedState.loading = false; }
+  }
+
+  // ── 목표주가 변동 (상향/하향) ──
+  const tpState = { dir: null };
+  function renderTpChanges(v) {
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">목표주가 변동</div>
+      <div class="ai-sub" style="margin-left:auto">증권사 리포트 기준 · 최신순</div></div>
+      <div class="rb-tabs" id="tptabs"></div><main class="rb-list" id="tpbody"></main></div>`;
+    const tabs = [[null, "전체"], ["상향", "▲ 상향"], ["하향", "▼ 하향"]];
+    $("#tptabs").innerHTML = tabs.map(([k, l]) => `<button class="rb-tab${tpState.dir === k ? " active" : ""}" data-d="${k == null ? "" : k}">${l}</button>`).join("");
+    $("#tptabs").querySelectorAll(".rb-tab").forEach((b) => b.onclick = () => { tpState.dir = b.dataset.d || null; renderTpChanges(v); });
+    tpLoad();
+  }
+  async function tpLoad() {
+    const box = $("#tpbody"); if (!box) return;
+    box.innerHTML = `<div class="rb-spin">불러오는 중…</div>`;
+    let res; try { res = await window.API.tpChanges(tpState.dir, 0); } catch (e) { box.innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
+    const rows = res.rows;
+    if (!rows.length) { box.innerHTML = `<div class="rb-empty">🎯<div>목표주가 변동 리포트가 없습니다.</div></div>`; return; }
+    const won = (n) => n == null ? "-" : Number(n).toLocaleString("ko-KR");
+    box.innerHTML = rows.map((r) => {
+      const up = r.tp_dir === "상향"; const mk = up ? "▲" : "▼";
+      const meta = [r.house, r.analyst, r.opinion, r.target_price ? "TP " + won(r.target_price) : "",
+        r.upside != null ? `상승여력 ${r.upside > 0 ? "+" : ""}${r.upside}%` : "", r.report_date].filter(Boolean).join(" · ");
+      return `<a class="rb-item rp-item" href="${esc(r.url)}" target="_blank" rel="noopener">
+        <div class="rb-item-main"><div class="rb-item-title"><span class="tp-mk ${up ? "u-up" : "u-dn"}">${mk} ${r.tp_dir}</span> ${esc(r.stock_name || "")} <span class="cns-code">${esc(r.stock_code || "")}</span></div>
+        <div class="rp-meta">${meta}</div>${r.title ? `<div class="rb-item-sum">${esc(r.title)}</div>` : ""}</div></a>`;
+    }).join("");
+  }
+
   // ── 브리핑 (아침·장마감·리서치콜·오늘의 리서치) ──
   const briefState = { type: null, sel: null };
   const BRIEF_TYPES = [[null, "전체"], ["morning", "아침 브리핑"], ["daily_reports", "오늘의 리서치"], ["closing", "장마감"], ["research_call", "리서치콜"]];

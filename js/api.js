@@ -305,6 +305,26 @@ window.API = (() => {
              kis: kis.data || null, notes: notes.data || [], news: news.data || [] };
   }
 
+  // 텔레그램 시황 피드 — tg_digests (1시간마다 78개 리서치방 요약)
+  async function tgFeed(page = 0) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const { data, error } = await sb.from("tg_digests").select("id,ts,channels,body")
+      .order("ts", { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1);
+    if (error) throw new Error(error.message);
+    return { rows: data || [], hasMore: (data || []).length === PAGE };
+  }
+  // 목표주가 변동 — reports 중 상향/하향
+  async function tpChanges(dir = null, page = 0) {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    let q = sb.from("reports").select("rpt_id,report_date,stock_name,stock_code,house,analyst,opinion,target_price,tp_dir,current_price,upside,title,url")
+      .in("tp_dir", dir ? [dir] : ["상향", "하향"])
+      .order("report_date", { ascending: false }).order("rpt_id", { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return { rows: data || [], hasMore: (data || []).length === PAGE };
+  }
   // 브리핑(아침·장마감·리서치콜·오늘의 리서치) — briefs 테이블
   async function briefs(type) {
     const sb = window.SB.client();
@@ -316,5 +336,5 @@ window.API = (() => {
     if (error) throw new Error(error.message);
     return data || [];
   }
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, stockSearch, stockDetail, briefs, PAGE };
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, stockSearch, stockDetail, briefs, tgFeed, tpChanges, PAGE };
 })();

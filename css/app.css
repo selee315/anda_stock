@@ -386,3 +386,12 @@ button { font-family: inherit; cursor: pointer; }
 .hf-title{font-size:13.5px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hf-meta{flex:0 0 auto;display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted)}
 @media(max-width:860px){.pillar-grid{grid-template-columns:1fr}}
+
+/* ── 시황 피드 (텔레그램) ── */
+.fd-tg{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow)}
+.fd-tg-time{font-size:12px;font-weight:700;color:var(--accent-d);margin-bottom:8px}
+.fd-tg-body{font-size:13px;line-height:1.7;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+/* ── 목표주가 변동 마크 ── */
+.tp-mk{font-size:12px;font-weight:800;padding:1px 7px;border-radius:5px;margin-right:6px}
+.tp-mk.u-up{color:var(--up);background:color-mix(in srgb,var(--up) 12%,transparent)}
+.tp-mk.u-dn{color:var(--down);background:color-mix(in srgb,var(--down) 12%,transparent)}
