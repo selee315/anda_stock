@@ -331,7 +331,9 @@ window.API = (() => {
     if (!sb) throw new Error("Supabase 미연결");
     let q = sb.from("briefs").select("id,brief_type,brief_date,title,body,notion_url")
       .order("brief_date", { ascending: false }).order("id", { ascending: false }).limit(80);
+    // 사이트 브리핑은 아침 브리핑·오늘의 리서치만 (장마감·리서치콜은 노션 My thought 전용)
     if (type) q = q.eq("brief_type", type);
+    else q = q.in("brief_type", ["morning", "daily_reports"]);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     return data || [];

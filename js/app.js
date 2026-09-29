@@ -284,23 +284,34 @@
   const fstate = { inv: "외국인", mkt: "KOSPI" };
   async function renderFlows(v) {
     v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">수급</div>
-      <div class="ai-sub" style="margin-left:auto">투자자별 순매수/순매도 상위 · Naver · 금액 백만원</div></div>
+      <div class="ai-sub" style="margin-left:auto">투자자별 순매수/순매도 상위 · 한국투자증권 · 금액 억원</div></div>
       <div class="rb-tabs" id="ftabs"></div><main class="rb-list" id="fbody"><div class="rb-spin">불러오는 중…</div></main></div>`;
     let snap; try { snap = await window.API.flows(); } catch (e) { $("#fbody").innerHTML = `<div class="ai-err">⚠️ ${esc(e.message)}</div>`; return; }
     if (!snap) { $("#fbody").innerHTML = `<div class="rb-empty">💧<div>아직 데이터가 없습니다.</div></div>`; return; }
     const invs = ["외국인", "기관"], mkts = ["KOSPI", "KOSDAQ"];
     $("#ftabs").innerHTML = invs.map((iv) => `<button class="rb-tab${fstate.inv === iv ? " active" : ""}" data-iv="${iv}">${iv}</button>`).join("")
-      + `<span style="width:12px"></span>` + mkts.map((mk) => `<button class="rb-tab${fstate.mkt === mk ? " active" : ""}" data-mk="${mk}">${mk === "KOSPI" ? "코스피" : "코스닥"}</button>`).join("");
+      + `<span class="ftab-gap"></span>` + mkts.map((mk) => `<button class="rb-tab${fstate.mkt === mk ? " active" : ""}" data-mk="${mk}">${mk === "KOSPI" ? "코스피" : "코스닥"}</button>`).join("");
     $("#ftabs").querySelectorAll("[data-iv]").forEach((b) => b.onclick = () => { fstate.inv = b.dataset.iv; renderFlows(v); });
     $("#ftabs").querySelectorAll("[data-mk]").forEach((b) => b.onclick = () => { fstate.mkt = b.dataset.mk; renderFlows(v); });
     const cell = (snap.data[fstate.inv] || {})[fstate.mkt] || { buy: [], sell: [] };
-    const won = (n) => (n / 100).toLocaleString("ko-KR", { maximumFractionDigits: 0 });  // 백만→억
-    const colTable = (rows, buy) => `<div class="flow-col"><div class="flow-col-h ${buy ? "buy" : "sell"}">${buy ? "순매수" : "순매도"} 상위</div>
+    const eok = (mn) => { const n = Math.abs(mn) / 100; return n >= 1000 ? Math.round(n).toLocaleString("ko-KR") : n.toFixed(0); }; // 백만→억
+    const manju = (q) => { const n = Math.abs(q) / 10000; return n >= 100 ? Math.round(n).toLocaleString("ko-KR") : n.toFixed(1); }; // 주→만주
+    const won = (p) => p ? Number(p).toLocaleString("ko-KR") : "-";
+    const chgCls = (c) => c > 0 ? "up" : c < 0 ? "dn" : "";
+    const chgTxt = (c) => c == null ? "" : `${c > 0 ? "+" : ""}${c.toFixed(2)}%`;
+    // 상위 5개 합계 → 수급 강도 한눈에
+    const sum = (rows) => rows.reduce((a, r) => a + Math.abs(r.amt), 0);
+    const colTable = (rows, buy) => `<div class="flow-col">
+      <div class="flow-col-h ${buy ? "buy" : "sell"}"><span>${buy ? "순매수" : "순매도"} 상위</span>
+        <span class="flow-col-sum">상위20 ${eok(sum(rows))}억</span></div>
+      <div class="flow-thead"><span>종목</span><span>현재가</span><span>순매수액</span></div>
       ${rows.map((r, i) => `<a class="flow-row" href="https://finance.naver.com/item/main.naver?code=${r.code}" target="_blank" rel="noopener">
-        <span class="flow-rank">${i + 1}</span><span class="flow-name">${esc(r.name)}</span>
-        <span class="flow-amt ${buy ? "buy" : "sell"}">${won(Math.abs(r.amt_mn))}억</span></a>`).join("")}</div>`;
-    $("#fbody").innerHTML = `<div class="flow-wrap">${colTable(cell.buy, true)}${colTable(cell.sell, false)}</div>
-      <div class="mkt-updated">기준일: ${snap.basis ? fmtDate(snap.basis) : "-"}</div>`;
+        <span class="flow-name"><i class="flow-rk">${i + 1}</i><b>${esc(r.name)}</b><i class="flow-code">${r.code}</i></span>
+        <span class="flow-px"><b>${won(r.price)}</b><i class="flow-chg ${chgCls(r.chg)}">${chgTxt(r.chg)}</i></span>
+        <span class="flow-amt ${buy ? "buy" : "sell"}"><b>${eok(r.amt)}억</b><i class="flow-qty">${manju(r.qty)}만주</i></span></a>`).join("")}</div>`;
+    $("#fbody").innerHTML = `<div class="flow-note">${fstate.inv}이(가) ${fstate.mkt === "KOSPI" ? "코스피" : "코스닥"}에서 많이 사고판 종목 · 순매수 = 매수−매도 (금액 기준 순위)</div>
+      <div class="flow-wrap">${colTable(cell.buy, true)}${colTable(cell.sell, false)}</div>
+      <div class="mkt-updated">기준일: ${snap.basis ? fmtDate(snap.basis) : "-"} · 출처 한국투자증권 OpenAPI</div>`;
   }
 
   // ── 배당주 ──
@@ -845,8 +856,8 @@
 
   // ── 브리핑 (아침·장마감·리서치콜·오늘의 리서치) ──
   const briefState = { type: null, sel: null };
-  const BRIEF_TYPES = [[null, "전체"], ["morning", "아침 브리핑"], ["daily_reports", "오늘의 리서치"], ["closing", "장마감"], ["research_call", "리서치콜"]];
-  const BRIEF_LABEL = { morning: "아침 브리핑", daily_reports: "오늘의 리서치", closing: "장마감", research_call: "리서치콜" };
+  const BRIEF_TYPES = [[null, "전체"], ["morning", "아침 브리핑"], ["daily_reports", "오늘의 리서치"]];
+  const BRIEF_LABEL = { morning: "아침 브리핑", daily_reports: "오늘의 리서치" };
   function renderBriefs(v) {
     v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">브리핑</div>
       <div class="ai-sub" style="margin-left:auto">매일 자동 생성 · 노션 동기화</div></div>

@@ -315,16 +315,31 @@ button { font-family: inherit; cursor: pointer; }
 .news-src.ov { color: #1f6fd0; background: rgba(31,111,208,.1); }
 
 /* ── 수급 ── */
-.flow-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px 0; }
-.flow-col-h { font-size: 12.5px; font-weight: 800; padding: 8px 6px; border-bottom: 2px solid var(--line); }
+.ftab-gap { width: 1px; align-self: stretch; margin: 4px 6px; background: var(--line); }
+.flow-note { font-size: 12px; color: var(--muted); padding: 4px 2px 0; }
+.flow-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 10px 0; }
+.flow-col { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card); }
+.flow-col-h { display: flex; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 800; padding: 11px 14px; border-bottom: 1px solid var(--line); }
 .flow-col-h.buy { color: var(--up); } .flow-col-h.sell { color: var(--down); }
-.flow-row { display: flex; align-items: center; gap: 10px; padding: 9px 6px; border-bottom: 1px solid var(--line2); text-decoration: none; color: inherit; }
+.flow-col-sum { margin-left: auto; font-size: 11.5px; font-weight: 700; color: var(--faint); font-variant-numeric: tabular-nums; }
+.flow-thead { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; padding: 6px 14px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: var(--faint); border-bottom: 1px solid var(--line2); }
+.flow-thead span:first-child { padding-left: 26px; } .flow-thead span:nth-child(2) { text-align: right; } .flow-thead span:last-child { text-align: right; }
+.flow-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 14px; padding: 9px 14px; border-bottom: 1px solid var(--line2); text-decoration: none; color: inherit; }
+.flow-row:last-child { border-bottom: 0; }
 .flow-row:hover { background: var(--soft); }
-.flow-rank { width: 20px; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
-.flow-name { flex: 1; font-weight: 600; font-size: 13.5px; }
-.flow-amt { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13px; }
-.flow-amt.buy { color: var(--up); } .flow-amt.sell { color: var(--down); }
-@media (max-width: 560px) { .flow-wrap { grid-template-columns: 1fr; } }
+.flow-name { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.flow-rk { flex: none; width: 18px; font-style: normal; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.flow-name b { font-weight: 700; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flow-code { font-size: 10.5px; color: var(--faint); font-style: normal; font-variant-numeric: tabular-nums; flex: none; }
+.flow-px { text-align: right; font-variant-numeric: tabular-nums; }
+.flow-px b { font-size: 13px; font-weight: 600; display: block; }
+.flow-chg { font-size: 11px; font-style: normal; color: var(--faint); }
+.flow-chg.up { color: var(--up); } .flow-chg.dn { color: var(--down); }
+.flow-amt { text-align: right; font-variant-numeric: tabular-nums; }
+.flow-amt b { font-weight: 800; font-size: 13.5px; display: block; }
+.flow-amt.buy b { color: var(--up); } .flow-amt.sell b { color: var(--down); }
+.flow-qty { font-size: 11px; font-style: normal; color: var(--faint); }
+@media (max-width: 640px) { .flow-wrap { grid-template-columns: 1fr; } }
 
 /* ── 배당주 ── */
 .dv-sec { font-size: 14px; font-weight: 800; padding: 12px 4px 4px; }
