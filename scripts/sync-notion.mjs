@@ -235,13 +235,18 @@ async function run() {
   console.log(`대상 페이지: ${pages.length}건`);
 
   // 증분: 기존 last_edited 로드 → 안 바뀐 페이지는 본문 재수집 생략
+  // + 기존 sector 로드 → 노션에 섹터가 없을 때 수동 보정값을 덮어쓰지 않도록 보존
   const seen = new Map();
+  const sectorKeep = new Map();   // notion_id -> 기존 sector(수동 보정 보존용)
   {
     let from = 0;
     for (;;) {
-      const { data } = await sb.from("research_notes").select("notion_id,last_edited").range(from, from + 999);
+      const { data } = await sb.from("research_notes").select("notion_id,last_edited,sector").range(from, from + 999);
       if (!data || !data.length) break;
-      for (const r of data) if (r.last_edited) seen.set(r.notion_id, new Date(r.last_edited).getTime());
+      for (const r of data) {
+        if (r.last_edited) seen.set(r.notion_id, new Date(r.last_edited).getTime());
+        if (r.sector) sectorKeep.set(r.notion_id, r.sector);
+      }
       if (data.length < 1000) break;
       from += 1000;
     }
@@ -261,8 +266,9 @@ async function run() {
       // FULL_SYNC 아니면, 안 바뀐 페이지는 본문 재수집 생략 (증분)
       if (!FULL_SYNC && edited && seen.get(page.id) === edited) { skip++; continue; }
       const title = pageTitle(page);
-      // 섹터: 자신의 속성 → 부모(회사)에서 상속. 작성자(people) 수집.
-      const sector = pageProp(page, "Sector") || pageProp(page, "섹터") || page._parent_sector || null;
+      // 섹터: 자신의 속성 → 부모(회사) 상속 → 기존 수동보정값 보존 (노션 null 로 덮어쓰기 방지).
+      const sector = pageProp(page, "Sector") || pageProp(page, "섹터")
+                     || page._parent_sector || sectorKeep.get(page.id) || null;
       const { names: author, ids: author_ids } = pagePeople(page, "작성자");
       pendingRows.length = 0;                        // 이 페이지에서 발견될 하위 행 수집 준비
       const content = await pageMarkdown(page.id);
