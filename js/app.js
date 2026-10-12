@@ -83,7 +83,7 @@
     { id: "research", cat: "리서치", icon: "📚", name: "사내 리서치 자료", desc: "회의록·기업탐방·세미나·모닝브리핑·Spot Comment 전체 검색·열람", ready: true, big: true },
     { id: "reports", cat: "리서치", icon: "📄", name: "리서치 리포트", desc: "증권사 리포트·목표주가 변동 (FnGuide)", ready: true },
     { id: "ai", cat: "리서치", icon: "🤖", name: "AI 리서치", desc: "사내 리서치 자료 기반 종합·질의응답", ready: true },
-    { id: "briefs", cat: "리서치", icon: "📋", name: "브리핑", desc: "아침 브리핑·오늘의 리서치·장마감·리서치콜 (매일 자동 생성)", ready: true },
+    { id: "briefs", cat: "리서치", icon: "📋", name: "브리핑", desc: "아침 브리핑·장 마감 브리핑 (매일 자동 생성)", ready: true },
     { id: "stock", cat: "종목·컨센서스", icon: "🔎", name: "종목 검색", desc: "종목 하나로 현재가·컨센서스·리포트·공시 통합 조회", ready: true },
     { id: "consensus", cat: "종목·컨센서스", icon: "🔮", name: "컨센서스", desc: "증권사 목표주가·투자의견 집계 (FnGuide)", ready: true },
     { id: "tpchanges", cat: "종목·컨센서스", icon: "🎯", name: "목표주가 변동", desc: "이번 주 목표주가 상향▲·하향▼ 종목 (아이디어 발굴)", ready: true },
@@ -856,8 +856,8 @@
 
   // ── 브리핑 (아침·장마감·리서치콜·오늘의 리서치) ──
   const briefState = { type: null, sel: null };
-  const BRIEF_TYPES = [[null, "전체"], ["morning", "아침 브리핑"], ["daily_reports", "오늘의 리서치"]];
-  const BRIEF_LABEL = { morning: "아침 브리핑", daily_reports: "오늘의 리서치" };
+  const BRIEF_TYPES = [[null, "전체"], ["morning", "아침 브리핑"], ["daily_reports", "장 마감 브리핑"]];
+  const BRIEF_LABEL = { morning: "아침 브리핑", daily_reports: "장 마감 브리핑" };
   function renderBriefs(v) {
     v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">브리핑</div>
       <div class="ai-sub" style="margin-left:auto">매일 자동 생성 · 노션 동기화</div></div>
