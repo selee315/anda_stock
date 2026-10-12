@@ -106,6 +106,17 @@ function pagePeople(page, name) {
     ids: arr.map((u) => u.id).filter(Boolean).join(",") || null,
   };
 }
+// 사용자 id → 이름 (캐시). "세혁 임" 처럼 성/이름 순서 뒤집힌 경우 보정.
+const _userCache = new Map();
+async function userName(uid) {
+  if (!uid) return null;
+  if (_userCache.has(uid)) return _userCache.get(uid);
+  let n = null;
+  try { const u = await notionFetch(`/v1/users/${uid}`); n = u?.name || null; } catch {}
+  if (n && /\s/.test(n)) { const p = n.split(/\s+/); if (p.length === 2) n = p[1] + p[0]; }
+  _userCache.set(uid, n);
+  return n;
+}
 function iconEmoji(page) {
   return page.icon?.type === "emoji" ? page.icon.emoji : null;
 }
@@ -269,7 +280,12 @@ async function run() {
       // 섹터: 자신의 속성 → 부모(회사) 상속 → 기존 수동보정값 보존 (노션 null 로 덮어쓰기 방지).
       const sector = pageProp(page, "Sector") || pageProp(page, "섹터")
                      || page._parent_sector || sectorKeep.get(page.id) || null;
-      const { names: author, ids: author_ids } = pagePeople(page, "작성자");
+      let { names: author, ids: author_ids } = pagePeople(page, "작성자");
+      // 세미나는 작성자 속성이 비어있어 생성자(created_by)로 대체 (발표자는 외부인이라 제목만)
+      if (!author && page._source === "증권사/외부 세미나") {
+        const cn = await userName(page.created_by?.id);
+        if (cn && cn !== "ANDA") author = cn;
+      }
       pendingRows.length = 0;                        // 이 페이지에서 발견될 하위 행 수집 준비
       const content = await pageMarkdown(page.id);
       const found = pendingRows.splice(0);           // 이 페이지 안에서 발견된 하위 노트들
