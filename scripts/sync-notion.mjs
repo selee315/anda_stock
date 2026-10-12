@@ -96,6 +96,16 @@ function pageProp(page, name) {
   if (p.type === "rich_text") return rich(p.rich_text);
   return null;
 }
+// people 속성 → {names, ids} (작성자 등). Notion 이 사용자 이름을 바로 돌려줌.
+function pagePeople(page, name) {
+  const p = (page.properties || {})[name];
+  if (!p || p.type !== "people") return { names: null, ids: null };
+  const arr = p.people || [];
+  return {
+    names: arr.map((u) => u.name).filter(Boolean).join(", ") || null,
+    ids: arr.map((u) => u.id).filter(Boolean).join(",") || null,
+  };
+}
 function iconEmoji(page) {
   return page.icon?.type === "emoji" ? page.icon.emoji : null;
 }
@@ -251,14 +261,26 @@ async function run() {
       // FULL_SYNC 아니면, 안 바뀐 페이지는 본문 재수집 생략 (증분)
       if (!FULL_SYNC && edited && seen.get(page.id) === edited) { skip++; continue; }
       const title = pageTitle(page);
+      // 섹터: 자신의 속성 → 부모(회사)에서 상속. 작성자(people) 수집.
+      const sector = pageProp(page, "Sector") || pageProp(page, "섹터") || page._parent_sector || null;
+      const { names: author, ids: author_ids } = pagePeople(page, "작성자");
       pendingRows.length = 0;                        // 이 페이지에서 발견될 하위 행 수집 준비
       const content = await pageMarkdown(page.id);
       const found = pendingRows.splice(0);           // 이 페이지 안에서 발견된 하위 노트들
       for (const r of found) {
-        parentMap.set(r.id, { pid: page.id, ptitle: title });   // 항상 부모관계 기록
+        parentMap.set(r.id, { pid: page.id, ptitle: title, psector: sector });   // 부모관계+섹터 기록
         if (!processed.has(r.id)) {
-          r._source = page._source; r._parent_id = page.id; r._parent_title = title;
+          r._source = page._source; r._parent_id = page.id; r._parent_title = title; r._parent_sector = sector;
           queue.push(r); discovered++;
+        }
+      }
+      // 빈 껍데기(제목 '종목명'·'제목없음' + 내용 없음/목록 스텁뿐) 는 저장 생략 (노이즈 제거)
+      {
+        const _t = (title || "").trim();
+        const _c = (content || "").replace(/^###\s*📁[^\n]*/m, "")
+                     .replace(/^-\s*\[[^\]]*\]\([^)]*\)\s*$/gm, "").trim();
+        if (["종목명", "제목없음", "제목 없음"].includes(_t) && _c.length < 10) {
+          skip++; continue;
         }
       }
       const category = pageProp(page, "카테고리") || pageProp(page, "Category") || null;
@@ -272,7 +294,11 @@ async function run() {
         source_db: page._source || null,
         parent_id: page._parent_id || null,
         parent_title: page._parent_title || null,
-        sector: pageProp(page, "Sector") || pageProp(page, "섹터") || null,
+        sector,
+        author: author,
+        author_ids: author_ids,
+        write_date: validDate(pageProp(page, "작성일")),
+        theme: pageProp(page, "Theme") || pageProp(page, "테마") || null,
         title,
         category,
         summary: summary || null,
@@ -298,6 +324,12 @@ async function run() {
       .update({ parent_id: pt.pid, parent_title: pt.ptitle })
       .eq("notion_id", cid).is("parent_id", null);
     if (!error) fixed++;
+    // 처리 순서상 섹터를 못 받은 자식에 회사 섹터 상속
+    if (pt.psector) {
+      await sb.from("research_notes")
+        .update({ sector: pt.psector })
+        .eq("notion_id", cid).is("sector", null);
+    }
   }
   console.log(`부모 보정 시도: ${parentMap.size}건`);
   console.log(`동기화 완료: 성공 ${ok} / 생략 ${skip} / 실패 ${fail} / 하위발견 ${discovered}`);
