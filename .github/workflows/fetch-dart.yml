@@ -1,9 +1,9 @@
 name: DART 국내공시 수집
 
+# 2026-10: GitHub 시크릿(DART_API_KEY) 문제로 CI 실패 → 맥미니 launchd(com.anda.dart,
+# 평일 9:30·12:30·15:30·18:30)로 이관. 이 워크플로는 수동 실행용으로만 남겨둠.
 on:
-  workflow_dispatch:            # 수동 실행 (Actions 탭에서 Run)
-  schedule:
-    - cron: "0 */3 * * *"       # 3시간마다 (DART 하루 2만콜 여유 · 접수번호 PK로 중복제거)
+  workflow_dispatch:
 
 jobs:
   fetch:
