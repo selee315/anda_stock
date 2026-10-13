@@ -355,6 +355,29 @@ async function run() {
   }
   console.log(`부모 보정 시도: ${parentMap.size}건`);
   console.log(`동기화 완료: 성공 ${ok} / 생략 ${skip} / 실패 ${fail} / 하위발견 ${discovered}`);
+
+  // 유령 정리: 노션에서 삭제됐는데 Supabase 에 남은 행 제거.
+  // FULL_SYNC(전체 페이지를 실제로 처리)에서만, 또 비정상 축소 방지 안전장치 적용.
+  if (FULL_SYNC && fail === 0 && processed.size > 3000) {
+    let allIds = [];
+    for (let from = 0; ; from += 1000) {
+      const { data } = await sb.from("research_notes").select("notion_id").eq("source", "notion").range(from, from + 999);
+      if (!data || !data.length) break;
+      allIds.push(...data.map((r) => r.notion_id));
+      if (data.length < 1000) break;
+    }
+    const ghosts = allIds.filter((id) => !processed.has(id));
+    // 전체의 20% 초과 삭제는 비정상으로 간주하고 중단(크롤 누락 등 사고 방지)
+    if (ghosts.length && ghosts.length < allIds.length * 0.2) {
+      for (let i = 0; i < ghosts.length; i += 100) {
+        await sb.from("research_notes").delete().in("notion_id", ghosts.slice(i, i + 100));
+      }
+      console.log(`🧹 유령(노션 삭제분) 정리: ${ghosts.length}건 제거`);
+    } else if (ghosts.length) {
+      console.log(`⚠️ 유령 후보 ${ghosts.length}건이 과다 — 안전상 자동삭제 보류`);
+    }
+  }
+
   if ((ok + skip) === 0 && processed.size > 0) {
     console.error("⚠️ 모든 upsert 실패 — 워크플로우를 실패 처리합니다.");
     process.exit(1);
