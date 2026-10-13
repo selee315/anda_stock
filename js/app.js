@@ -1111,7 +1111,10 @@
             ${r.source_db ? `<span class="rb-badge">${esc(r.source_db)}</span>` : ""}
             ${r.meeting_date ? `<span>${fmtDate(r.meeting_date)}</span>` : ""}
           </div>
-          <div class="reader-body">${r.content ? mdToHtml(r.content) : `<p class="rb-empty-t">본문이 없습니다. (노션 원문 참고)</p>`}</div>
+          <div class="reader-body">${r.content ? mdToHtml(r.content) : (
+            /\.(xlsm|xlsx|pdf|pptx?|docx?|hwp)\s*$/i.test(r.title || "")
+              ? `<p class="rb-empty-t">📎 파일 첨부 노트입니다. ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">노션에서 파일 열기 ↗</a>` : "노션 원문에서 파일을 확인하세요."}</p>`
+              : `<p class="rb-empty-t">본문이 없습니다. ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">노션 원문 ↗</a>` : "(노션 원문 참고)"}</p>`)}</div>
         </div>`;
       $("#rdClose").onclick = closeReader;
     } catch (e) {
