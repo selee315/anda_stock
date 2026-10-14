@@ -75,7 +75,38 @@ function runAgent(prompt, onProgress) {
   });
 }
 
+// 짧은 단발 요약 (에이전트 도구 없이 claude -p 평문)
+function runQuick(prompt) {
+  return new Promise((resolve, reject) => {
+    const p = spawn("claude", ["-p", prompt, "--model", "opus"], { env: process.env });
+    let out = "", err = "";
+    const timer = setTimeout(() => { p.kill("SIGKILL"); reject(new Error("요약 시간초과")); }, 90 * 1000);
+    p.stdout.on("data", (d) => { out += d.toString(); });
+    p.stderr.on("data", (d) => { err += d.toString(); });
+    p.on("close", (code) => {
+      clearTimeout(timer);
+      if (out.trim()) resolve(out.trim());
+      else reject(new Error(err.slice(-200) || ("종료코드 " + code)));
+    });
+    p.on("error", (e) => { clearTimeout(timer); reject(e); });
+  });
+}
+
 async function processOne(req) {
+  // 텔레그램 트렌드 '관련 내용' 요약 — 빠른 경로(에이전트 미사용)
+  if ((req.question || "").indexOf("⟦TG요약⟧") === 0) {
+    await sb.from("ai_requests").update({ status: "processing", progress: "✨ 요약 중…" }).eq("id", req.id);
+    try {
+      const sum = await runQuick(req.question);
+      await sb.from("ai_requests").update({ status: "done", answer: sum }).eq("id", req.id);
+      sb.from("ai_requests").update({ progress: null }).eq("id", req.id).then(() => {}, () => {});
+      console.log(`✓ #${req.id} TG요약 완료`);
+    } catch (e) {
+      await sb.from("ai_requests").update({ status: "error", answer: "요약 실패: " + e.message }).eq("id", req.id);
+      console.error(`✗ #${req.id} TG요약 실패: ${e.message}`);
+    }
+    return;
+  }
   const progress = [];
   const pushProgress = (line) => {
     progress.push(line);
