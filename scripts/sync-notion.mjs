@@ -284,7 +284,8 @@ async function run() {
       // 세미나는 작성자 속성이 비어있어 생성자(created_by)로 대체 (발표자는 외부인이라 제목만)
       if (!author && page._source === "증권사/외부 세미나") {
         const cn = await userName(page.created_by?.id);
-        if (cn && cn !== "ANDA") author = cn;
+        if (cn === "ANDA") author = "김주영";   // 통합 계정 생성분 → 김주영
+        else if (cn) author = cn;
       }
       pendingRows.length = 0;                        // 이 페이지에서 발견될 하위 행 수집 준비
       const content = await pageMarkdown(page.id);
