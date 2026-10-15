@@ -196,6 +196,34 @@ async function inlineDbMarkdown(dbBlock) {
     return `### 📁 ${label}`;
   }
 }
+// 하위DB 행만 가볍게 나열 (본문 미수집). 증분이 건너뛴 컨테이너(회사) 페이지에서
+// 하위 '노트' DB에 새로 추가/수정된 노트를 탐지하기 위한 용도.
+// (하위DB에 노트를 추가해도 바깥 회사 페이지의 last_edited 는 안 바뀌어 증분이 놓침)
+async function listSubDbRows(pageId) {
+  const rows = [];
+  let cursor;
+  do {
+    await sleep(130);
+    const res = await withRetry(() => notion.blocks.children.list({ block_id: pageId, start_cursor: cursor, page_size: 100 }));
+    for (const b of res.results) {
+      if (b.type !== "child_database") continue;
+      try {
+        const dsIds = await dataSourceIdsOf(b.id);
+        for (const dsId of dsIds) {
+          let cc;
+          do {
+            const q = await notionFetch(`/v1/data_sources/${dsId}/query`, "POST", cc ? { start_cursor: cc } : {});
+            for (const r of q.results) rows.push(r);
+            cc = q.has_more ? q.next_cursor : undefined;
+          } while (cc);
+        }
+      } catch { /* 이 하위DB 접근 실패는 무시 */ }
+    }
+    cursor = res.has_more ? res.next_cursor : undefined;
+  } while (cursor);
+  return rows;
+}
+
 function blockToMd(b) {
   const t = b.type;
   const txt = b[t]?.rich_text ? rich(b[t].rich_text) : "";
@@ -284,7 +312,29 @@ async function run() {
     try {
       const edited = page.last_edited_time ? new Date(page.last_edited_time).getTime() : null;
       // FULL_SYNC 아니면, 안 바뀐 페이지는 본문 재수집 생략 (증분)
-      if (!FULL_SYNC && edited && seen.get(page.id) === edited) { skip++; continue; }
+      if (!FULL_SYNC && edited && seen.get(page.id) === edited) {
+        skip++;
+        // 부모(회사) 페이지는 안 바뀌었어도, 그 안쪽 '노트' 하위DB에는 새 노트가
+        // 추가됐을 수 있음(하위 추가/수정은 부모 last_edited 를 안 건드림). 하위DB를
+        // 직접 훑어 새/변경 노트만 큐에 넣는다 (본문은 큐 처리 때 수집).
+        if (!page._parent_id) {
+          try {
+            const subs = await listSubDbRows(page.id);
+            if (subs.length) {
+              const ptitle = pageTitle(page);
+              const psector = pageProp(page, "Sector") || pageProp(page, "섹터") || sectorKeep.get(page.id) || null;
+              for (const r of subs) {
+                if (processed.has(r.id)) continue;
+                const re = r.last_edited_time ? new Date(r.last_edited_time).getTime() : null;
+                if (seen.has(r.id) && re && seen.get(r.id) === re) continue;   // 하위 노트도 변화 없음
+                r._source = page._source; r._parent_id = page.id; r._parent_title = ptitle; r._parent_sector = psector;
+                queue.push(r); discovered++;
+              }
+            }
+          } catch { /* 하위DB 스캔 실패는 다음 주기에 재시도 */ }
+        }
+        continue;
+      }
       const title = pageTitle(page);
       // 섹터: 자신의 속성 → 부모(회사) 상속 → 기존 수동보정값 보존 (노션 null 로 덮어쓰기 방지).
       const sector = pageProp(page, "Sector") || pageProp(page, "섹터")
