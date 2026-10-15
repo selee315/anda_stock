@@ -21,7 +21,7 @@ if (!NOTION_TOKEN || !SUPABASE_URL || !SERVICE_KEY) {
   process.exit(1);
 }
 
-const notion = new Client({ auth: NOTION_TOKEN });
+const notion = new Client({ auth: NOTION_TOKEN, timeoutMs: 30000 });
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
 // 신형 데이터소스 API 지원 (구형 databases.query 로는 data-source DB 를 못 읽음)
@@ -32,15 +32,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function notionFetch(path, method = "GET", body) {
   let delay = 1000;
   for (let attempt = 0; attempt < 6; attempt++) {
-    const res = await fetch("https://api.notion.com" + path, {
-      method,
-      headers: {
-        Authorization: `Bearer ${NOTION_TOKEN}`,
-        "Notion-Version": NOTION_VERSION,
-        "Content-Type": "application/json",
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    let res;
+    try {
+      res = await fetch("https://api.notion.com" + path, {
+        method,
+        headers: {
+          Authorization: `Bearer ${NOTION_TOKEN}`,
+          "Notion-Version": NOTION_VERSION,
+          "Content-Type": "application/json",
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(30000),   // 무한 대기 방지
+      });
+    } catch (e) {                              // 타임아웃·네트워크 오류 → 재시도
+      await sleep(delay);
+      delay = Math.min(delay * 2, 16000);
+      continue;
+    }
     if (res.status === 429 || res.status >= 500) {
       const ra = Number(res.headers.get("retry-after"));
       await sleep(ra > 0 ? ra * 1000 + 300 : delay);
@@ -51,7 +59,7 @@ async function notionFetch(path, method = "GET", body) {
     if (!res.ok) throw new Error(j.message || `HTTP ${res.status}`);
     return j;
   }
-  throw new Error("rate limit: 재시도 초과");
+  throw new Error("요청 재시도 초과(타임아웃/429)");
 }
 
 // SDK 호출(429 재시도) 래퍼
@@ -61,7 +69,8 @@ async function withRetry(fn) {
     try { return await fn(); }
     catch (e) {
       const code = e?.status || e?.code;
-      if (code === 429 || code === "rate_limited" || (e?.status >= 500)) {
+      if (code === 429 || code === "rate_limited" || (e?.status >= 500)
+          || code === "notionhq_client_request_timeout") {   // 타임아웃도 재시도
         const ra = Number(e?.headers?.["retry-after"]);
         await sleep(ra > 0 ? ra * 1000 + 300 : delay);
         delay = Math.min(delay * 2, 16000);
@@ -281,8 +290,9 @@ async function run() {
       const sector = pageProp(page, "Sector") || pageProp(page, "섹터")
                      || page._parent_sector || sectorKeep.get(page.id) || null;
       let { names: author, ids: author_ids } = pagePeople(page, "작성자");
-      // 세미나는 작성자 속성이 비어있어 생성자(created_by)로 대체 (발표자는 외부인이라 제목만)
-      if (!author && page._source === "증권사/외부 세미나") {
+      // 작성자 속성이 비어있으면 페이지 생성자(created_by)로 보완.
+      // (세미나 발표자·매니저가 작성자란을 안 채운 탐방/콜 노트도 만든 사람으로 귀속)
+      if (!author) {
         const cn = await userName(page.created_by?.id);
         if (cn === "ANDA") author = "김주영";   // 통합 계정 생성분 → 김주영
         else if (cn) author = cn;
