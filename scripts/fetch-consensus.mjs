@@ -1,11 +1,13 @@
 // ─────────────────────────────────────────────────────────────
-//  컨센서스 (FnGuide) → Supabase 수집기
-//  wcomp.fnguide.com/CompanyInfo/Consensus (무료, 키 X)
-//  유니버스: disclosures 테이블의 종목코드(활동 종목). 개별 증권사 목표주가 평균 → 컨센서스.
+//  컨센서스 (네이버) → Supabase 수집기   ※ fnguide 크롤 금지 공지(2026-10)로 전환
+//  소스: m.stock.naver.com/api/stock/{code}/integration → consensusInfo
+//        (priceTargetMean=목표주가 컨센서스, recommMean=투자의견 평균 1~5, createDate=기준일)
+//  유니버스: 네이버 시총순 전종목(코스피+코스닥) + 핵심 대형주(CORE). 현재가도 동시 확보.
 //
 //  필요 env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //  실행: set -a; source scripts/.env; node scripts/fetch-consensus.mjs
-//  옵션: CNS_LIMIT=20 (테스트용 상한), CNS_CONC=5 (동시성)
+//  옵션: CNS_LIMIT=20 (테스트 상한), CNS_CONC=5 (동시성)
+//  참고: 추정기관 수(est_cnt)는 네이버 API 미제공 → null. target/opinion/base_date 는 제공.
 // ─────────────────────────────────────────────────────────────
 import { createClient } from "@supabase/supabase-js";
 
@@ -19,56 +21,42 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
   process.exit(1);
 }
 const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
 
 const num = (s) => { if (s == null) return null; s = String(s).replace(/,/g, "").trim(); if (s === "" || s === "-") return null; const n = Number(s); return Number.isNaN(n) ? null : n; };
-const decodeEnt = (s) => (s || "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 증권사 목표주가 테이블 행: 증권사 | 일자 | 목표가 | 직전 | 변동 | 투자의견
-const BROKER = /<tr[^>]*>\s*<td class="l">([^<]+)<\/td>\s*<td class="c">([^<]*)<\/td>\s*<td class="r">([^<]*)<\/td>\s*<td class="r">([^<]*)<\/td>\s*<td class="r[^"]*">([^<]*)<\/td>\s*<td class="r">([^<]*)<\/td>/g;
-
-async function scrape(code) {
-  let html;
+// 종목 1개 컨센서스 — 네이버 integration API 의 consensusInfo.
+// 목표주가(priceTargetMean) 없으면 커버리지 없음으로 간주(null 반환).
+async function scrape(code, name) {
+  let j;
   try {
-    const r = await fetch(`https://wcomp.fnguide.com/CompanyInfo/Consensus?cmp_cd=${code}`, { headers: { "User-Agent": UA } });
+    const r = await fetch(`https://m.stock.naver.com/api/stock/${code}/integration`, { headers: { "User-Agent": UA, Referer: "https://m.stock.naver.com/" } });
     if (!r.ok) return null;
-    html = Buffer.from(await r.arrayBuffer()).toString("utf8");
+    j = await r.json();
   } catch { return null; }
 
-  // 요청 종목과 응답 종목 일치 확인 (미존재 코드는 기본페이지로 떨어짐)
-  const tm = html.match(/<title>([^<(]+)\((\d{6})\)/);
-  if (!tm || tm[2] !== code) return null;
-  const corp_name = decodeEnt(tm[1].trim());
-
-  const cutoff90 = new Date(Date.now() - 90 * 86400000);
-  let sum = 0, cnt = 0, cnt90 = 0, opSum = 0, opCnt = 0, maxDate = "";
-  let m;
-  BROKER.lastIndex = 0;
-  while ((m = BROKER.exec(html))) {
-    const name = m[1].trim();
-    if (name === "Consensus") continue;                 // 요약행은 제외(직접 평균)
-    const p = num(m[3]);
-    const op = num(m[6]);
-    const dstr = (m[2] || "").trim().replace(/\//g, "-");   // 2026/07/31 → 2026-07-31
-    if (p) { sum += p; cnt++; if (dstr && new Date(dstr) >= cutoff90) cnt90++; }
-    if (op != null) { opSum += op; opCnt++; }
-    if (dstr && dstr > maxDate) maxDate = dstr;
-  }
-  if (!cnt) return null;                                 // 목표주가 제시 증권사 없음 = 커버리지 없음
+  const ci = j && j.consensusInfo;
+  if (!ci) return null;
+  const tp = num(ci.priceTargetMean);
+  if (!tp) return null;                                 // 목표주가 컨센서스 없음 = 커버리지 없음
+  const base = (ci.createDate || "").trim() || null;    // 2026-10-15
 
   return {
-    stock_code: code, corp_name,
-    target_price: Math.round(sum / cnt),
-    opinion: opCnt ? Math.round((opSum / opCnt) * 100) / 100 : null,
-    est_cnt: cnt, est_cnt_90d: cnt90,
-    base_date: maxDate || null,
-    current_price: null, upside: null,                   // 아래서 Naver로 채움
+    stock_code: code,
+    corp_name: name || (j.stockName || "").trim() || null,
+    target_price: tp,
+    opinion: num(ci.recommMean),                        // 투자의견 평균(1~5)
+    est_cnt: null,                                       // 네이버 미제공
+    est_cnt_90d: null,
+    base_date: base,
+    current_price: null,                                // 아래서 채움
+    upside: null,
     updated_at: new Date().toISOString(),
   };
 }
 
-// Naver 시총순 전종목 리스트 — 유니버스 + 현재가(closePrice) 동시 확보.
+// 네이버 시총순 전종목 리스트 — 유니버스 + 현재가(closePrice) 동시 확보.
 async function marketList(mkt, pages) {
   const out = [];   // {code, name, price}
   for (let p = 1; p <= pages; p++) {
@@ -89,7 +77,7 @@ async function marketList(mkt, pages) {
   return out;
 }
 
-// 핵심 대형주 — 공시 유니버스에 없어도 항상 포함(코스피·코스닥 대표주)
+// 핵심 대형주 — 유니버스에 없어도 항상 포함(코스피·코스닥 대표주)
 const CORE = [
   "005930", "000660", "373220", "207940", "005380", "005490", "051910", "006400",
   "035420", "035720", "000270", "068270", "105560", "055550", "086790", "316140",
@@ -103,20 +91,21 @@ const KOSPI_PAGES  = parseInt(process.env.CNS_KOSPI_PAGES  || "12", 10);   // �
 const KOSDAQ_PAGES = parseInt(process.env.CNS_KOSDAQ_PAGES || "8",  10);
 
 (async () => {
-  // 유니버스: Naver 시총순 전종목(코스피+코스닥) — 현재가 포함
+  // 유니버스: 네이버 시총순 전종목(코스피+코스닥) — 현재가 포함
   const listed = [...await marketList("KOSPI", KOSPI_PAGES), ...await marketList("KOSDAQ", KOSDAQ_PAGES)];
   const priceMap = new Map();                       // code → 현재가
+  const nameMap = new Map();                         // code → 종목명
   const codes = new Set(CORE);                       // 핵심주는 항상 포함
-  for (const s of listed) { codes.add(s.code); if (s.price != null) priceMap.set(s.code, s.price); }
+  for (const s of listed) { codes.add(s.code); if (s.price != null) priceMap.set(s.code, s.price); if (s.name) nameMap.set(s.code, s.name); }
   let universe = [...codes];
   if (LIMIT > 0) universe = universe.slice(0, LIMIT);
-  console.log(`🔮 컨센서스 수집 — 유니버스 ${universe.length}개 (코스피↑${KOSPI_PAGES}p·코스닥↑${KOSDAQ_PAGES}p, 동시성 ${CONC})`);
+  console.log(`🔮 컨센서스 수집(네이버) — 유니버스 ${universe.length}개 (코스피↑${KOSPI_PAGES}p·코스닥↑${KOSDAQ_PAGES}p, 동시성 ${CONC})`);
 
   const rows = [];
   let done = 0, covered = 0;
   for (let i = 0; i < universe.length; i += CONC) {
     const batch = universe.slice(i, i + CONC);
-    const res = await Promise.all(batch.map(scrape));
+    const res = await Promise.all(batch.map((c) => scrape(c, nameMap.get(c))));
     for (const r of res) if (r) {
       const cp = priceMap.get(r.stock_code) ?? null;
       r.current_price = cp;
@@ -134,7 +123,7 @@ const KOSDAQ_PAGES = parseInt(process.env.CNS_KOSDAQ_PAGES || "8",  10);
     if (error) { console.error("upsert 실패:", error.message); process.exit(1); }
   }
   console.log(`✓ 저장 ${rows.length}건 (커버리지 있는 종목)`);
-  // 상위 커버 종목 미리보기
-  rows.sort((a, b) => b.est_cnt - a.est_cnt);
-  for (const r of rows.slice(0, 8)) console.log(`   ${r.corp_name.padEnd(12)} 목표 ${String(r.target_price).padStart(9)} · 의견 ${r.opinion} · ${r.est_cnt}곳`);
+  // 상위 목표주가 미리보기
+  rows.sort((a, b) => (b.target_price || 0) - (a.target_price || 0));
+  for (const r of rows.slice(0, 8)) console.log(`   ${String(r.corp_name || "").padEnd(12)} 목표 ${String(r.target_price).padStart(9)} · 의견 ${r.opinion} · ${r.base_date}`);
 })();
