@@ -1,9 +1,9 @@
 name: 컨센서스(FnGuide) 수집
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: "40 22 * * 1-5"     # 평일 22:40 UTC (≈ 다음날 07:40 KST, FnGuide 일간 갱신 후)
+  workflow_dispatch:            # ⚠️ 수동 전용. 컴플라이언스: fnguide 크롤링 금지 공지(2026-10)로
+  # schedule:                   #    예약 크롤 중단. 대체 소스 확보 전까지 schedule 비활성.
+  #   - cron: "40 22 * * 1-5"   #    평일 22:40 UTC (≈ 다음날 07:40 KST)
 
 jobs:
   fetch:
