@@ -273,6 +273,19 @@ window.API = (() => {
   const movers = () => snapshot("movers_snapshot");
   const sector = () => snapshot("sector_returns");
 
+  // 금융 캘린더 — calendar_events (지난달~앞으로)
+  async function calendar() {
+    const sb = window.SB.client();
+    if (!sb) throw new Error("Supabase 미연결");
+    const f = new Date(); f.setDate(1); f.setDate(f.getDate() - 35);
+    const fromIso = f.toISOString().slice(0, 10);
+    const { data, error } = await sb.from("calendar_events")
+      .select("event_date,event_time,country,category,title,ticker,importance,detail")
+      .gte("event_date", fromIso).order("event_date", { ascending: true }).limit(5000);
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
   // 종목 통합 — 검색(컨센서스 대상 종목) + 상세(컨센서스·리포트·공시 종합)
   async function stockSearch(q) {
     const sb = window.SB.client();
@@ -338,5 +351,5 @@ window.API = (() => {
     if (error) throw new Error(error.message);
     return data || [];
   }
-  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, stockSearch, stockDetail, briefs, tgFeed, tpChanges, PAGE };
+  return { counts, list, get, companies, companyNotes, aiAsk, aiGet, aiHistory, marketQuotes, disclosures, disclosureCounts, consensus, reports, reportsChanged, macro, dividend, flows, news, movers, sector, calendar, stockSearch, stockDetail, briefs, tgFeed, tpChanges, PAGE };
 })();

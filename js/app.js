@@ -92,6 +92,7 @@
     { id: "flows", cat: "종목·컨센서스", icon: "💧", name: "수급", desc: "외국인·기관 투자자별 순매수 상위 (Naver)", ready: true },
     { id: "market", cat: "시장·매크로", icon: "📈", name: "시장 데이터", desc: "세계지수·환율·원자재 실시간(지연) 시세", ready: true },
     { id: "feed", cat: "시장·매크로", icon: "📡", name: "시황 피드", desc: "텔레그램 시간별 시황 요약 + 뉴스 (장중 속보)", ready: true },
+    { id: "calendar", cat: "시장·매크로", icon: "📅", name: "캘린더", desc: "미국 경제지표·실적·만기일 · 한국 실적 일정", ready: true },
     { id: "movers", cat: "시장·매크로", icon: "🚀", name: "급등락", desc: "코스피·코스닥 상승률·하락률 상위 (Naver)", ready: true },
     { id: "sector", cat: "시장·매크로", icon: "💹", name: "섹터 수익률", desc: "KODEX 섹터 ETF 기준 섹터별 등락 (Naver)", ready: true },
     { id: "macro", cat: "시장·매크로", icon: "📐", name: "MACRO", desc: "미국 매크로 지표 — M2·CPI·금리·유동성 (FRED)", ready: true },
@@ -194,6 +195,7 @@
     if (state.view === "flows") return renderFlows(v);
     if (state.view === "news") return renderNews(v);
     if (state.view === "feed") return renderFeed(v);
+    if (state.view === "calendar") return renderCalendar(v);
     if (state.view === "tpchanges") return renderTpChanges(v);
     if (state.view === "briefs") return renderBriefs(v);
     if (state.view === "ai") return renderAI(v);
@@ -383,6 +385,89 @@
         <div class="sc-bar-wrap"><div class="sc-bar ${up ? "up" : "dn"}" style="width:${w}%;${up ? "margin-left:50%" : "margin-left:" + (50 - w) + "%"}"></div></div>
         <span class="sc-val ${up ? "up" : "dn"}">${up ? "+" : ""}${val != null ? val.toFixed(2) : "-"}%</span></div>`;
     }).join("") + `<div class="mkt-updated">기준일: ${snap.basis ? fmtDate(snap.basis) : "-"}</div>`;
+  }
+
+  // ── 금융 캘린더 (월 그리드) ──
+  const calstate = { data: null, vy: null, vm: null, cat: "all", ctry: "all", imp: false, sel: null };
+  const CAL_ICON = { econ: "📊", earnings: "💵", expiry: "📅" };
+  const CAL_WD = ["일", "월", "화", "수", "목", "금", "토"];
+  function calIso(d) { const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
+  async function renderCalendar(v) {
+    v.innerHTML = `<div id="rb"><div class="rb-head"><div class="rb-title">금융 캘린더</div>
+      <div class="ai-sub" style="margin-left:auto">미국 경제지표·실적 · 한국 실적 · 옵션/선물 만기</div></div>
+      <div class="cal2"><div class="cal2-bar">
+        <div class="cal2-nav"><button id="calPrev">‹</button><b id="calLabel">—</b><button id="calNext">›</button>
+          <button id="calToday" class="cal2-tbtn">오늘</button></div>
+        <div class="cal2-fil" id="calCatF">
+          <button class="cchip on" data-cat="all">전체</button>
+          <button class="cchip" data-cat="econ">📊 지표</button>
+          <button class="cchip" data-cat="earnings">💵 실적</button>
+          <button class="cchip" data-cat="expiry">📅 만기</button></div>
+        <div class="cal2-fil" id="calCtryF">
+          <button class="cchip on" data-c="all">전체</button>
+          <button class="cchip" data-c="US">🇺🇸</button>
+          <button class="cchip" data-c="KR">🇰🇷</button></div>
+        <label class="cal2-imp"><input type="checkbox" id="calImp"> ★핵심만</label>
+      </div><div id="calGrid" class="cal2-grid"></div><div id="calDay" class="cal2-day"></div></div></div>`;
+    if (!calstate.data) {
+      $("#calGrid").innerHTML = `<div class="rb-spin" style="grid-column:1/8">불러오는 중…</div>`;
+      try { calstate.data = await window.API.calendar(); }
+      catch (e) { $("#calGrid").innerHTML = `<div class="ai-err" style="grid-column:1/8">⚠️ ${esc(e.message)}</div>`; return; }
+    }
+    const now = new Date();
+    if (calstate.vy == null) { calstate.vy = now.getFullYear(); calstate.vm = now.getMonth(); calstate.sel = calIso(now); }
+    const todayStr = calIso(now);
+
+    const pass = (r) => (calstate.cat === "all" || r.category === calstate.cat)
+      && (calstate.ctry === "all" || r.country === calstate.ctry)
+      && (!calstate.imp || r.importance >= 3);
+    const byDate = () => { const m = {}; calstate.data.forEach((r) => { if (pass(r)) (m[r.event_date] = m[r.event_date] || []).push(r); }); return m; };
+    const evLabel = (r) => (r.country === "KR" ? "🇰🇷" : "") + (r.category === "earnings" && r.ticker ? r.ticker
+      : (r.title || "").replace(/,? ?Inc\.?| Corporation| Platforms| Holdings/i, ""));
+
+    function drawGrid() {
+      const map = byDate();
+      $("#calLabel").textContent = `${calstate.vy}년 ${calstate.vm + 1}월`;
+      const first = new Date(calstate.vy, calstate.vm, 1);
+      const start = new Date(calstate.vy, calstate.vm, 1 - first.getDay());
+      let h = CAL_WD.map((d, i) => `<div class="cal2-dow${i === 0 ? " sun" : i === 6 ? " sat" : ""}">${d}</div>`).join("");
+      for (let k = 0; k < 42; k++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + k);
+        const ds = calIso(d), dow = d.getDay(), other = d.getMonth() !== calstate.vm;
+        const evs = (map[ds] || []).slice().sort((a, b) => b.importance - a.importance);
+        const big = evs.some((e) => e.importance >= 3);
+        h += `<div class="cal2-cell${other ? " other" : ""}${ds === todayStr ? " today" : ""}${ds === calstate.sel ? " sel" : ""}${dow === 0 ? " sun" : dow === 6 ? " sat" : ""}${big ? " big" : ""}" data-d="${ds}">`
+          + `<span class="cal2-dn">${d.getDate()}</span><div class="cal2-evs">`;
+        evs.slice(0, 3).forEach((e) => { h += `<div class="cev ${e.category}${e.importance >= 3 ? " i3" : ""}" title="${esc(e.title)}">${e.importance >= 3 ? "★" : ""}${esc(evLabel(e))}</div>`; });
+        if (evs.length > 3) h += `<div class="cal2-more">+${evs.length - 3}</div>`;
+        h += `</div></div>`;
+      }
+      $("#calGrid").innerHTML = h;
+      $("#calGrid").querySelectorAll(".cal2-cell").forEach((c) => c.onclick = () => { calstate.sel = c.dataset.d; drawGrid(); drawDay(); });
+    }
+    function drawDay() {
+      const map = byDate(); const evs = (map[calstate.sel] || []).slice().sort((a, b) => b.importance - a.importance);
+      const d = new Date(calstate.sel + "T00:00:00");
+      let h = `<h3 class="cal2-dh">🗓 ${calstate.sel.slice(5).replace("-", "/")} (${CAL_WD[d.getDay()]})${calstate.sel === todayStr ? " · 오늘" : ""} <span class="cal2-dc">· ${evs.length}건</span></h3>`;
+      if (!evs.length) { $("#calDay").innerHTML = h + `<div class="cal2-de">이 날은 등록된 일정이 없어요.</div>`; return; }
+      evs.forEach((r) => {
+        const dt = r.detail || {}; let meta = [];
+        if (r.category === "econ") { if (dt.consensus) meta.push("컨센 " + esc(dt.consensus)); if (dt.previous) meta.push("이전 " + esc(dt.previous)); if (dt.actual) meta.push("발표 " + esc(dt.actual)); }
+        else if (r.category === "earnings") { if (dt.time) meta.push(esc(dt.time)); if (dt.epsForecast) meta.push("EPS컨센 " + esc(dt.epsForecast)); if (dt.mktcap) meta.push("시총 " + esc(dt.mktcap)); if (dt.type) meta.push(esc(dt.type)); }
+        h += `<div class="cal2-dr"><div class="cal2-di">${CAL_ICON[r.category] || "•"}</div><div class="cal2-dm">`
+          + `<div class="cal2-dt">${r.country === "KR" ? "🇰🇷" : r.country === "US" ? "🇺🇸" : ""} ${esc(r.title)}${r.ticker ? `<span class="cal2-tk">${esc(r.ticker)}</span>` : ""}</div>`
+          + (meta.length ? `<div class="cal2-dmeta">${meta.join(" · ")}</div>` : "") + `</div>`
+          + `<div class="cal2-dstar">${"★".repeat(r.importance)}${r.event_time ? "<br>" + esc(r.event_time) : ""}</div></div>`;
+      });
+      $("#calDay").innerHTML = h;
+    }
+    const bindF = (id, key, attr) => { const g = $("#" + id); g.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; g.querySelectorAll("button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); calstate[key] = b.getAttribute(attr); drawGrid(); drawDay(); }; };
+    bindF("calCatF", "cat", "data-cat"); bindF("calCtryF", "ctry", "data-c");
+    $("#calImp").onchange = (e) => { calstate.imp = e.target.checked; drawGrid(); drawDay(); };
+    $("#calPrev").onclick = () => { calstate.vm--; if (calstate.vm < 0) { calstate.vm = 11; calstate.vy--; } drawGrid(); };
+    $("#calNext").onclick = () => { calstate.vm++; if (calstate.vm > 11) { calstate.vm = 0; calstate.vy++; } drawGrid(); };
+    $("#calToday").onclick = () => { calstate.vy = now.getFullYear(); calstate.vm = now.getMonth(); calstate.sel = todayStr; drawGrid(); drawDay(); };
+    drawGrid(); drawDay();
   }
 
   // ── 종목 통합 뷰 ──

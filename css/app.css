@@ -460,3 +460,48 @@ button { font-family: inherit; cursor: pointer; }
 .panel-body .hf-item{padding:8px 0}
 .panel-body .ck-row{padding:7px 0}
 @media(max-width:960px){.dash-grid{grid-template-columns:1fr}.pillar-grid{grid-template-columns:1fr}}
+
+/* ── 금융 캘린더 (월 그리드) ── */
+.cal2{max-width:1060px;margin-top:4px}
+.cal2-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:4px 0 16px}
+.cal2-nav{display:flex;align-items:center;gap:8px}
+.cal2-nav b{font-size:16px;min-width:112px;text-align:center;color:var(--ink)}
+.cal2-nav button{background:var(--card);border:1px solid var(--line);color:var(--ink);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;line-height:1;transition:.1s}
+.cal2-nav button:hover{border-color:var(--accent)}
+.cal2-tbtn{width:auto!important;padding:0 12px;font-size:12.5px!important;color:var(--dim)!important}
+.cal2-fil{display:inline-flex;gap:6px}
+.cal2 .cchip{border:1px solid var(--line);background:var(--card);color:var(--dim);padding:5px 11px;border-radius:999px;font-size:12.5px;cursor:pointer;transition:.1s}
+.cal2 .cchip:hover{border-color:var(--accent)}
+.cal2 .cchip.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.cal2-imp{display:inline-flex;align-items:center;gap:6px;color:var(--dim);font-size:12.5px;cursor:pointer}
+.cal2-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cal2-dow{background:var(--card2);color:var(--dim);text-align:center;padding:8px 0;font-size:12px;font-weight:600}
+.cal2-dow.sun{color:var(--down)}.cal2-dow.sat{color:#3b82f6}
+.cal2-cell{background:var(--card);min-height:104px;padding:5px 6px 7px;cursor:pointer;transition:.1s;overflow:hidden}
+.cal2-cell:hover{background:var(--card2)}
+.cal2-cell.other{opacity:.42}
+.cal2-cell.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.cal2-cell.big{box-shadow:inset 0 0 0 1.5px rgba(217,119,6,.4)}
+.cal2-cell.sel.big{box-shadow:inset 0 0 0 2px var(--accent)}
+.cal2-dn{display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;border-radius:50%;font-size:12.5px;font-weight:600;color:var(--ink);padding:0 5px}
+.cal2-cell.sun .cal2-dn{color:var(--down)}.cal2-cell.sat .cal2-dn{color:#3b82f6}
+.cal2-cell.today .cal2-dn{background:var(--accent);color:var(--on-accent)}
+.cal2-evs{margin-top:3px;display:flex;flex-direction:column;gap:2px}
+.cev{font-size:10.5px;line-height:1.32;padding:1px 5px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:2.5px solid}
+.cev.econ{background:rgba(59,130,246,.13);border-color:#3b82f6;color:#2563eb}
+.cev.earnings{background:rgba(14,158,90,.13);border-color:var(--up);color:var(--up)}
+.cev.expiry{background:rgba(217,119,6,.15);border-color:#d97706;color:#b45309}
+.cev.i3{font-weight:700}
+.cal2-more{font-size:10px;color:var(--dim);padding:1px 5px}
+.cal2-day{margin-top:16px}
+.cal2-dh{font-size:15px;margin:0 0 8px;color:var(--ink)}
+.cal2-dc{color:var(--dim);font-weight:400;font-size:13px}
+.cal2-de{color:var(--dim);font-size:13px;padding:6px 2px}
+.cal2-dr{display:flex;gap:11px;align-items:flex-start;padding:9px 4px;border-bottom:1px solid var(--line)}
+.cal2-di{font-size:15px;width:20px;text-align:center;margin-top:1px}
+.cal2-dm{flex:1;min-width:0}
+.cal2-dt{font-size:14px;color:var(--ink)}
+.cal2-tk{color:#3b82f6;font-weight:600;margin-left:5px;font-size:12.5px}
+.cal2-dmeta{color:var(--dim);font-size:12px;margin-top:2px}
+.cal2-dstar{color:#d9a400;font-size:11.5px;white-space:nowrap;text-align:right}
+@media(max-width:640px){.cal2-cell{min-height:76px}.cev{font-size:9.5px}}
