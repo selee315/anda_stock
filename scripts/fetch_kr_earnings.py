@@ -30,12 +30,14 @@ except Exception: CTX=ssl.create_default_context()
 def jget(url):
     return json.load(urllib.request.urlopen(url, timeout=25, context=CTX))
 
-def dart_list(bgn, end, want):
-    """기간 내 공시 중 report_nm 에 want 포함된 것들."""
+def dart_list(bgn, end, want, pblntf_ty="I", max_pages=70):
+    """기간 내 공시 중 report_nm 에 want 포함된 것들.
+    pblntf_ty='I'(거래소공시)로 좁혀 전수 수집(실적공시예고·영업잠정실적 모두 거래소공시)."""
     out=[]
-    for pg in range(1, 11):
+    for pg in range(1, max_pages+1):
+        ty = f"&pblntf_ty={pblntf_ty}" if pblntf_ty else ""
         url=(f"https://opendart.fss.or.kr/api/list.json?crtfc_key={KEY}"
-             f"&bgn_de={bgn}&end_de={end}&page_count=100&page_no={pg}")
+             f"&bgn_de={bgn}&end_de={end}{ty}&page_count=100&page_no={pg}")
         try: d=jget(url)
         except Exception: break
         if d.get("status")!="000": break
@@ -107,7 +109,43 @@ def main():
              "detail":{"type":"잠정실적 발표","via":"DART"},"source":"dart",
              "uniq":f"krprov|{rd}|{corp}"})
 
-    print(f"\n✓ 한국 실적 {len(rows)}건 (예정 {sum(1 for r in rows if '예정' in r['title'])} · 잠정 {sum(1 for r in rows if '잠정' in r['title'])})", flush=True)
+    # 확정/발표된 기업(예고·잠정) — 예상 추가 시 중복 방지용
+    confirmed = set(r.get("ticker") or r["title"].split()[0] for r in rows)
+
+    # 3) 향후 '예상' 실적발표 — 작년 같은 분기(동기) 발표일 +364일로 추정.
+    #    (한국 기업은 1주 전에야 예고를 올려 확정분이 드물다 → 작년 기준 예상치로 향후 채움)
+    anchor = today - dt.timedelta(days=364)              # 작년 같은 달력 위치
+    # 향후로 매핑될 구간만: 작년 [anchor, anchor+56] 을 주 단위로 쪼개 전수 수집
+    # (한 번에 긴 기간을 받으면 DART 페이지 한도로 누락 → 주별로 분할)
+    seen_corp = {}
+    wk = anchor
+    while wk <= anchor + dt.timedelta(days=56):
+        we = min(wk + dt.timedelta(days=6), anchor + dt.timedelta(days=56))
+        chunk = dart_list(wk.strftime("%Y%m%d"), we.strftime("%Y%m%d"), "영업(잠정)실적")
+        for x in chunk:
+            corp = x.get("corp_name", "").strip(); code = x.get("stock_code") or None
+            rd = x.get("rcept_dt", "")
+            if corp and corp not in seen_corp and len(rd) == 8:
+                seen_corp[corp] = (code, rd)
+        wk = we + dt.timedelta(days=1)
+    est_cnt = 0
+    for corp, (code, rd) in seen_corp.items():
+        if (code or corp) in confirmed:
+            continue                                     # 이미 확정/발표분 있으면 예상 생략
+        try:
+            est = (dt.datetime.strptime(rd, "%Y%m%d").date() + dt.timedelta(days=364)).isoformat()
+        except ValueError:
+            continue
+        if est < today.isoformat():
+            continue                                     # 과거 추정일 제외
+        add({"event_date": est, "event_time": None, "country": "KR", "category": "earnings",
+             "title": f"{corp} 실적발표(예상)", "ticker": code, "importance": 1,
+             "detail": {"type": "실적발표 예상(작년 동기 기준)", "via": "DART 추정"}, "source": "dart-est",
+             "uniq": f"krest|{est}|{corp}"})
+        est_cnt += 1
+    print(f"작년 동기 {len(seen_corp)}개 → 향후 예상 {est_cnt}건 추가", flush=True)
+
+    print(f"\n✓ 한국 실적 {len(rows)}건 (예정 {sum(1 for r in rows if '(예정)' in r['title'])} · 잠정 {sum(1 for r in rows if '잠정' in r['title'])} · 예상 {sum(1 for r in rows if '(예상)' in r['title'])})", flush=True)
     for r in sorted(rows, key=lambda r:r['event_date'])[:12]:
         print(f"   [{r['event_date']}] {r['title']}")
     if DRY: print("(--dry: 적재 생략)"); return
