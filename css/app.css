@@ -487,12 +487,12 @@ button { font-family: inherit; cursor: pointer; }
 .cal2-cell.sun .cal2-dn{color:var(--down)}.cal2-cell.sat .cal2-dn{color:#3b82f6}
 .cal2-cell.today .cal2-dn{background:var(--accent);color:var(--on-accent)}
 .cal2-evs{margin-top:3px;display:flex;flex-direction:column;gap:2px}
-.cev{font-size:10.5px;line-height:1.32;padding:1px 5px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:2.5px solid}
-.cev.econ{background:rgba(59,130,246,.13);border-color:#3b82f6;color:#2563eb}
-.cev.earnings{background:rgba(14,158,90,.13);border-color:var(--up);color:var(--up)}
-.cev.expiry{background:rgba(217,119,6,.15);border-color:#d97706;color:#b45309}
-.cev.i3{font-weight:700}
-.cal2-more{font-size:10px;color:var(--dim);padding:1px 5px}
+.cev{font-size:11px;line-height:1.4;padding:1.5px 5px 1.5px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid;font-weight:600;color:var(--ink)}
+.cev.econ{background:rgba(37,99,235,.15);border-color:#2563eb}
+.cev.earnings{background:rgba(5,150,105,.15);border-color:#059669}
+.cev.expiry{background:rgba(217,119,6,.17);border-color:#d97706}
+.cev.i3{font-weight:800}
+.cal2-more{font-size:10.5px;color:var(--ink);opacity:.7;font-weight:600;padding:1px 5px}
 .cal2-day{margin-top:16px}
 .cal2-dh{font-size:15px;margin:0 0 8px;color:var(--ink)}
 .cal2-dc{color:var(--dim);font-weight:400;font-size:13px}
